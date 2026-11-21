@@ -10,7 +10,7 @@
 //   5. Pure-logic edge cases (10+): wanted, damage, enter/exit car, stealing,
 //      combat, missions, save, traffic lights, collisions, busted.
 
-import { spawn, execFile } from 'node:child_process';
+import { execFile } from 'node:child_process';
 import {
   readdirSync, readFileSync, statSync, lstatSync, existsSync, rmSync, mkdirSync,
   writeFileSync, copyFileSync,
@@ -21,7 +21,6 @@ import { fileURLToPath } from 'node:url';
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const GAME = join(ROOT, 'game');
 const SHOTS = join(ROOT, 'screenshots');
-const CHROME = '/opt/meta-chromium/chrome';
 
 let passed = 0;
 let failed = 0;
@@ -153,45 +152,79 @@ async function testParses() {
 }
 
 // ------------------------------------------------------------ headless load --
-async function waitForServer(port, tries = 40) {
-  for (let i = 0; i < tries; i++) {
-    try {
-      const res = await fetch('http://127.0.0.1:' + port + '/');
-      if (res.ok) return true;
-    } catch { /* not up yet */ }
-    await new Promise((r) => setTimeout(r, 250));
-  }
-  return false;
-}
+// The provisioned Chromium needs its Hatch WebGL policy flags, and this VM's
+// egress proxy blocks plain localhost navigation, so the test serves game/
+// from disk through Playwright route interception: no network request ever
+// leaves the browser, exactly like the real game (which loads nothing over
+// the network either).
+const PLAYWRIGHT = '/opt/muse/assets/spaces/ts-runtime/dist/node_modules/playwright/index.mjs';
+const POLICY_PATH = '/var/lib/hatch-browser/rootfs-base/usr/share/hatch/chromium/webgl-allowed-domains.txt';
 
 async function testHeadless() {
   console.log('\n[4] headless Chrome load');
-  if (!existsSync(CHROME)) {
-    check('chrome binary present', false, CHROME + ' missing');
+  let chromium;
+  try {
+    ({ chromium } = await import(PLAYWRIGHT));
+  } catch (e) {
+    check('playwright available in this environment', false, String(e).slice(0, 120));
     return;
   }
-  const port = 8091;
-  const server = spawn('node', ['serve.ts', '--port', String(port)], { cwd: ROOT, stdio: 'ignore' });
-  const up = await waitForServer(port);
-  check('dev server answers on port ' + port, up);
-  if (!up) { server.kill(); return; }
+  const { createHash } = await import('node:crypto');
+  const policy = readFileSync(POLICY_PATH);
+  const sha = createHash('sha256').update(policy).digest('hex');
+  const browser = await chromium.launch({
+    executablePath: '/opt/meta-chromium/chrome',
+    headless: true,
+    args: [
+      '--no-sandbox',
+      '--disable-gpu',
+      `--hatch-webgl-allowed-domains-file=${POLICY_PATH}`,
+      `--hatch-webgl-allowed-domains-sha256=${sha}`,
+    ],
+  });
+  const MIME = {
+    '.html': 'text/html; charset=utf-8',
+    '.js': 'text/javascript; charset=utf-8',
+    '.css': 'text/css; charset=utf-8',
+    '.json': 'application/json; charset=utf-8',
+  };
   const shots = JSON.parse(readFileSync(join(ROOT, 'shots.json'), 'utf8'));
   for (const shot of shots) {
-    const url = 'http://127.0.0.1:' + port + '/' + shot.query;
-    const r = await run(CHROME, [
-      '--headless=new', '--no-sandbox', '--disable-gpu',
-      '--window-size=1280,800', '--virtual-time-budget=6000',
-      '--dump-dom', url,
-    ]);
-    const dom = r.stdout || '';
+    const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+    const errors = [];
+    page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
+    page.on('console', (m) => {
+      if (m.type() === 'error') errors.push('console: ' + m.text());
+    });
+    await page.route('**/*', async (route) => {
+      const url = new URL(route.request().url());
+      const rel = url.pathname === '/' ? 'index.html' : url.pathname.slice(1);
+      const file = join(GAME, rel);
+      if (existsSync(file)) {
+        const ext = file.slice(file.lastIndexOf('.'));
+        await route.fulfill({
+          status: 200,
+          contentType: MIME[ext] || 'application/octet-stream',
+          body: readFileSync(file),
+        });
+      } else {
+        await route.fulfill({ status: 404, body: 'not found' });
+      }
+    });
+    await page.goto('http://game.local/' + shot.query, { waitUntil: 'load', timeout: 30000 });
+    let ready = false;
+    try {
+      await page.waitForFunction(() => window.__solmarReady === true, null, { timeout: 10000 });
+      ready = true;
+    } catch { /* reported below */ }
+    await page.waitForTimeout(1200);
+    const status = await page.evaluate(() => document.getElementById('status')?.textContent || '');
     check(shot.name + ' page loads (status div ready)',
-      dom.includes('Solmar City ready') && !dom.includes('ERROR:'),
-      dom.slice(dom.indexOf('id="status"'), dom.indexOf('id="status"') + 120));
-    const errLog = (r.stderr || '');
-    check(shot.name + ' has no uncaught JS error',
-      !/Uncaught|net::ERR_|Failed to load/.test(errLog), errLog.slice(0, 200));
+      ready && status.startsWith('Solmar City ready') && !status.includes('ERROR'), status.slice(0, 120));
+    check(shot.name + ' has no uncaught JS error', errors.length === 0, errors.join(' | ').slice(0, 200));
+    await page.close();
   }
-  server.kill();
+  await browser.close();
 }
 
 // --------------------------------------------------------------- logic tests --
@@ -238,12 +271,12 @@ async function testLogic() {
     const s = fakeState(); s.wanted = 4; ent.raiseWanted(s, 3); return s.wanted === 5;
   })());
 
-  // 4. Armour absorbs 60% of damage.
+  // 4. Armour absorbs 60% of damage; the other 40% hits health.
   check('armour absorbs damage before health', (() => {
     const s = fakeState();
     s.player.armor = 50; s.player.health = 100;
     ent.damagePlayer(s, 10);
-    return s.player.armor === 44 && s.player.health === 100;
+    return s.player.armor === 44 && s.player.health === 96;
   })());
 
   // 5. Entering a parked car works; exiting restores on-foot state.
@@ -368,9 +401,7 @@ async function testLogic() {
     const s = fakeState();
     s.wanted = 1;
     s.police.push(ent.makeCar(525, 470, 0, { kind: 'police', speed: 0 }));
-    ent.updatePolice(s, 1.1);
-    ent.updatePolice(s, 1.1);
-    ent.updatePolice(s, 1.1);
+    for (let i = 0; i < 200; i++) ent.updatePolice(s, 1 / 60);
     return s.busted === true;
   })());
 

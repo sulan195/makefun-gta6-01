@@ -247,7 +247,7 @@ function drawTitleScreen(ctx, state, view) {
     'P jeda & simpan · Misi, wanted, dan minimap ada di HUD.',
   ];
   lines.forEach((l, i) => ctx.fillText(l, view.w / 2, 330 + i * 26));
-  const blink = Math.floor(state.clockSeconds * 2) % 2 === 0;
+  const blink = state.shot ? true : (Math.floor(state.clockSeconds * 2) % 2 === 0);
   if (blink) {
     ctx.fillStyle = '#ffffff';
     ctx.font = 'bold 30px system-ui, sans-serif';

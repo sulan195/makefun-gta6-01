@@ -536,10 +536,11 @@ export function updatePolice(state, dt) {
     const d = dist(pc.x, pc.y, p.x, p.y);
     nearest = Math.min(nearest, d);
     // Chase: steer toward the player, faster than traffic, slower than a
-    // good getaway car.
+    // good getaway car. Next to a player on foot, pull up and stop so the
+    // arrest can happen; against a car, keep ramming speed.
     const wantAngle = Math.atan2(p.y - pc.y, p.x - pc.x);
     pc.angle += clamp(angleDelta(pc.angle, wantAngle), -2.6 * dt, 2.6 * dt);
-    const target = d > 60 ? POLICE_MAX_SPEED : 120;
+    const target = (p.onFoot && d < 55) ? 0 : (d > 60 ? POLICE_MAX_SPEED : 120);
     if (pc.speed < target) pc.speed += 300 * dt;
     else pc.speed -= 200 * dt;
     pc.x += Math.cos(pc.angle) * pc.speed * dt;

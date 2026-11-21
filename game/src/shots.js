@@ -78,6 +78,7 @@ export function applyShot(state, name) {
     state.clockMinutes = 10 * 60;
     clearTraffic(state);
     putPlayerInCar(state, 1480, 1000, Math.PI / 2, 190);
+    state.autoDrive = true;
     ringTraffic(state, 1480, 1000, 9);
     startMission(state, 0);
     state.missions.step = 1; // passenger aboard, heading for the Marina
@@ -90,11 +91,13 @@ export function applyShot(state, name) {
   }
 
   if (name === 'chase') {
-    // Three-star chase: police on Mara's tail, sirens, brake lights.
+    // Three-star chase: Mara just stole the sedan (mission 2, escape step),
+    // police on her tail, sirens, brake lights.
     state.mode = 'play';
     state.clockMinutes = 16 * 60 + 30;
     clearTraffic(state);
     putPlayerInCar(state, 1160, 840, 0, 270);
+    state.autoDrive = true;
     ringTraffic(state, 1160, 840, 6);
     raiseWanted(state, 3);
     for (let i = 0; i < 4; i++) {
@@ -103,6 +106,9 @@ export function applyShot(state, name) {
         0, { kind: 'police', speed: 260 },
       ));
     }
+    startMission(state, 1);
+    state.missions.step = 2; // escape step: lose the cops
+    state.missions.targetCar = state.player.car;
     state.message = 'Polisi mengejarmu! Kabur!';
     state.messageUntil = state.clockSeconds + 30;
     state.view.camX = 1160 - 640;

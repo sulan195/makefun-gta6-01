@@ -4,7 +4,7 @@
 
 import { dist } from './util.js';
 import { makeEnemy, raiseWanted } from './entities.js';
-import { playCash, playPickup } from './audio.js';
+import { playCash, playPickup, playGunshot } from './audio.js';
 
 export const MISSION_DEFS = [
   {

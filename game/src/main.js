@@ -39,6 +39,7 @@ function createGame(seed, shot) {
     message: '', messageUntil: 0, dialog: null,
     missionTarget: null,
     busted: false, roadblockActive: false,
+    autoDrive: false, // ?shot= scenes keep the car rolling without input
     audio: createAudio(),
     input: createInput(),
     view: createView(),
@@ -88,6 +89,8 @@ function update(state, dt) {
   if (state.mode !== 'play') return;
 
   const p = state.player;
+  // Staged screenshot scenes keep the car rolling on their own.
+  if (state.autoDrive && p.car) input.up = true;
 
   if (wasPressed(input, 'pause')) {
     state.mode = 'paused';
