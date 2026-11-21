@@ -1,53 +1,81 @@
-// Keyboard and pointer input. Held keys give a steering direction; one-shot presses (start or
-// restart, pause) are queued as bit flags and taken once by the loop, so a press between two
-// frames is never lost and never counted twice.
+// input.js — keyboard + mouse state for Solmar City. One object, polled by the
+// game loop; edges (pressed-this-frame keys) are consumed by main.js.
 
-export const ACTION_CONFIRM = 1;
-export const ACTION_PAUSE = 2;
-
-const LEFT = new Set(['ArrowLeft', 'KeyA']);
-const RIGHT = new Set(['ArrowRight', 'KeyD']);
-const CONFIRM = new Set(['Space', 'Enter']);
-const PAUSE = new Set(['KeyP', 'Escape']);
-
-export function createInput(target) {
-  let left = false;
-  let right = false;
-  let actions = 0;
-
-  window.addEventListener('keydown', (event) => {
-    if (LEFT.has(event.code)) left = true;
-    else if (RIGHT.has(event.code)) right = true;
-    else if (CONFIRM.has(event.code)) {
-      if (!event.repeat) actions |= ACTION_CONFIRM;
-    } else if (PAUSE.has(event.code)) {
-      if (!event.repeat) actions |= ACTION_PAUSE;
-    } else return;
-    event.preventDefault();
-  });
-  window.addEventListener('keyup', (event) => {
-    if (LEFT.has(event.code)) left = false;
-    else if (RIGHT.has(event.code)) right = false;
-  });
-  // A key released while the tab is hidden never sends keyup: let go of everything on blur.
-  window.addEventListener('blur', () => {
-    left = false;
-    right = false;
-  });
-  target.addEventListener('pointerdown', () => {
-    actions |= ACTION_CONFIRM;
-  });
-
+export function createInput() {
   return {
-    /** -1 for left, 1 for right, 0 for neither or both. */
-    direction() {
-      return (right ? 1 : 0) - (left ? 1 : 0);
-    },
-    /** The one-shot presses since the last call, as ACTION_* flags. */
-    takeActions() {
-      const taken = actions;
-      actions = 0;
-      return taken;
-    },
+    up: false, down: false, left: false, right: false,
+    action: false, // E — enter / exit car, pick up
+    punch: false,  // F — melee
+    shoot: false,  // Space or mouse click — fire pistol
+    pause: false,  // P or Escape
+    confirm: false, // Enter — start screen / menus
+    mouseX: 0, mouseY: 0, mouseDown: false,
+    pressed: new Set(), // keys pressed since last consume
   };
+}
+
+const KEYMAP = {
+  ArrowUp: 'up', KeyW: 'up',
+  ArrowDown: 'down', KeyS: 'down',
+  ArrowLeft: 'left', KeyA: 'left',
+  ArrowRight: 'right', KeyD: 'right',
+  KeyE: 'action',
+  KeyF: 'punch',
+  Space: 'shoot',
+  KeyP: 'pause', Escape: 'pause',
+  Enter: 'confirm',
+};
+
+export function attachInput(input, element) {
+  function onKey(e, down) {
+    const name = KEYMAP[e.code];
+    if (!name) return;
+    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) {
+      e.preventDefault();
+    }
+    if (down && !input[name]) input.pressed.add(name);
+    input[name] = down;
+  }
+  function onMouseMove(e) {
+    // Aim in canvas pixels, even when CSS scales the canvas.
+    const canvas = document.getElementById('game');
+    const rect = canvas ? canvas.getBoundingClientRect() : element.getBoundingClientRect();
+    const scaleX = canvas ? canvas.width / rect.width : 1;
+    const scaleY = canvas ? canvas.height / rect.height : 1;
+    input.mouseX = (e.clientX - rect.left) * scaleX;
+    input.mouseY = (e.clientY - rect.top) * scaleY;
+  }
+  function onMouseDown(e) {
+    onMouseMove(e);
+    input.mouseDown = true;
+    input.shoot = true;
+    input.pressed.add('shoot');
+  }
+  function onMouseUp() {
+    input.mouseDown = false;
+    input.shoot = false;
+  }
+  element.addEventListener('keydown', (e) => onKey(e, true));
+  element.addEventListener('keyup', (e) => onKey(e, false));
+  element.addEventListener('mousemove', onMouseMove);
+  element.addEventListener('mousedown', onMouseDown);
+  element.addEventListener('mouseup', onMouseUp);
+  element.addEventListener('blur', () => {
+    input.up = input.down = input.left = input.right = false;
+    input.shoot = false;
+    input.mouseDown = false;
+  });
+}
+
+// Was this control pressed since the last frame? Consumes the edge.
+export function wasPressed(input, name) {
+  if (input.pressed.has(name)) {
+    input.pressed.delete(name);
+    return true;
+  }
+  return false;
+}
+
+export function endFrame(input) {
+  input.pressed.clear();
 }
