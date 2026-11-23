@@ -47,7 +47,7 @@ export function updateRace(state, dt) {
       race.active = true;
       race.idx = 0;
       race.time = 0;
-      state.message = 'BALAPAN mulai! ' + RACE_POINTS.length + ' checkpoint — gas!';
+      state.message = 'RACE START! ' + RACE_POINTS.length + ' checkpoints — go!';
       state.messageUntil = state.clockSeconds + 3;
       playPickup(state.audio);
     }
@@ -66,7 +66,7 @@ export function updateRace(state, dt) {
       addRespect(state, RACE_RESPECT);
       playCash(state.audio);
       state.message = 'FINISH! ' + formatRaceTime(race.time) + ' — +$' + RACE_REWARD
-        + (isBest ? ' (rekor baru!)' : ' (rekor ' + formatRaceTime(race.best) + ')');
+        + (isBest ? ' (new record!)' : ' (record ' + formatRaceTime(race.best) + ')');
       state.messageUntil = state.clockSeconds + 5;
     } else {
       state.message = 'Checkpoint ' + race.idx + '/' + RACE_POINTS.length;

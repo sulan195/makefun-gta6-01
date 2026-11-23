@@ -4,11 +4,11 @@
 // before Dax will hand them out.
 
 export const RANKS = [
-  { name: 'Orang Baru', min: 0 },
-  { name: 'Kenalan Jalanan', min: 20 },
-  { name: 'Sopir Kru', min: 45 },
-  { name: 'Tangan Kanan', min: 80 },
-  { name: 'Legenda Solmar', min: 130 },
+  { name: 'Newcomer', min: 0 },
+  { name: 'Street Connection', min: 20 },
+  { name: 'Crew Driver', min: 45 },
+  { name: 'Right Hand', min: 80 },
+  { name: 'Legend of Solmar', min: 130 },
 ];
 
 export function rankIndexFor(respect) {
@@ -35,7 +35,7 @@ export function addRespect(state, amount) {
   state.respect = (state.respect || 0) + amount;
   const after = rankIndexFor(state.respect);
   if (after > before) {
-    state.message = 'Respect naik! Kamu sekarang ' + RANKS[after].name + '.';
+    state.message = 'Respect up! You are now ' + RANKS[after].name + '.';
     state.messageUntil = state.clockSeconds + 4;
     return true;
   }

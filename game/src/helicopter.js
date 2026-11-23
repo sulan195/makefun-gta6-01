@@ -36,7 +36,7 @@ export function heliDecayFactor(state) {
 export function updateHelicopter(state, dt) {
   if (shouldSpawnHeli(state)) {
     state.heli = createHelicopter(state);
-    state.message = 'Helikopter CONDOR di atasmu! Searchlight-nya menguncimu.';
+    state.message = 'CONDOR helicopter overhead! Its searchlight has you locked.';
     state.messageUntil = state.clockSeconds + 3.5;
   }
   const heli = state.heli;

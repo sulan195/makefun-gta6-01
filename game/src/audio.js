@@ -103,7 +103,7 @@ export function playBusted(audio) { blip(audio, 220, 0.5, 'sawtooth', 0.2, 110);
 
 // Car radio: two fully synthesised stations, cycled with R while driving.
 // 1 = SOLMAR FM (slow sunset chords), 2 = BAY ROCK (driving bass + sparkle).
-export const RADIO_STATIONS = ['Radio mati', 'SOLMAR FM', 'BAY ROCK'];
+export const RADIO_STATIONS = ['Radio off', 'SOLMAR FM', 'BAY ROCK'];
 
 function updateRadio(audio, dt, station) {
   audio.radioTimer += dt;

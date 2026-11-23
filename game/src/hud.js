@@ -1,431 +1,186 @@
-// hud.js — everything drawn over the world: money and health, wanted stars,
-// the clock, the minimap, the active mission, dialog and toasts, plus the
-// title, pause, busted and wasted screens.
+// hud.js — everything flat on top of the 3D world: cash, health and armor,
+// the Respect rank, weapon and ammunition, wanted stars, the clock and the
+// current district, the objective panel with its distance readout, message
+// and dialogue lines, the garage menu, and a top-down minimap drawn from
+// the same world data the 3D city is built from.
 
-import { V_ROADS, H_ROADS, WORLD_W, WORLD_H, districtAt } from './world.js';
-import { formatClock, formatMoney, dist, clamp } from './util.js';
-import { currentMission, missionObjectiveText } from './missions.js';
-import { hasSave } from './save.js';
+import { V_ROADS, H_ROADS, districtAt } from './world.js';
 import { rankFor, nextRank } from './progression.js';
-import { weaponHudText } from './weapons.js';
-import { garageMenuItems, nearGarage } from './garage.js';
-import { formatRaceTime, RACE_POINTS } from './races.js';
+import { weaponHudText } from './combat.js';
+import { missionObjectiveText, missionTargetPos } from './missions.js';
+import { raceTarget, formatRaceTime } from './races.js';
+import { garageMenuItems } from './garage.js';
+import { dist } from './util.js';
 
-const MAP_W = 208;
-const MAP_H = 156;
+const el = (id) => document.getElementById(id);
 
-function drawStars(ctx, x, y, wanted) {
-  ctx.font = 'bold 22px system-ui, sans-serif';
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'middle';
-  for (let i = 0; i < 5; i++) {
-    ctx.fillStyle = i < wanted ? '#ffd34d' : 'rgba(255,255,255,0.35)';
-    ctx.fillText('★', x + i * 24, y);
-  }
+export function formatClock(minutes) {
+  const m = ((Math.floor(minutes) % 1440) + 1440) % 1440;
+  const hh = String(Math.floor(m / 60)).padStart(2, '0');
+  const mm = String(m % 60).padStart(2, '0');
+  return hh + ':' + mm;
 }
 
-function drawBar(ctx, x, y, w, h, frac, color, bg) {
-  ctx.fillStyle = bg;
-  ctx.fillRect(x, y, w, h);
-  ctx.fillStyle = color;
-  ctx.fillRect(x, y, w * clamp(frac, 0, 1), h);
-  ctx.strokeStyle = 'rgba(0,0,0,0.6)';
-  ctx.lineWidth = 1;
-  ctx.strokeRect(x + 0.5, y + 0.5, w, h);
-}
-
-export function drawMinimap(ctx, state, view) {
-  const mx = 16;
-  const my = view.h - MAP_H - 16;
-  const sx = MAP_W / WORLD_W;
-  const sy = MAP_H / WORLD_H;
-  ctx.save();
-  ctx.fillStyle = 'rgba(8, 18, 28, 0.78)';
-  ctx.fillRect(mx, my, MAP_W, MAP_H);
-  ctx.strokeStyle = 'rgba(255,255,255,0.5)';
-  ctx.lineWidth = 1;
-  ctx.strokeRect(mx + 0.5, my + 0.5, MAP_W, MAP_H);
-  // Water.
-  ctx.fillStyle = '#2d6a8a';
-  ctx.fillRect(mx, my + 1772 * sy, MAP_W, MAP_H - 1772 * sy);
-  // Roads.
-  ctx.strokeStyle = '#8a8a80';
-  ctx.lineWidth = 2;
+function buildMinimapBase(world) {
+  const c = document.createElement('canvas');
+  c.width = 190;
+  c.height = 143;
+  const g = c.getContext('2d');
+  const s = 190 / 2560;
+  g.fillStyle = '#1d4e5e';
+  g.fillRect(0, 0, 190, 143);
+  g.fillStyle = '#23272e';
+  g.fillRect(0, 0, 190, 1740 * s);
+  g.fillStyle = '#e8d9a0';
+  g.fillRect(0, 1740 * s, 190, 150 * s);
+  g.fillStyle = '#2e7d46';
+  g.fillRect(1240 * s, 1080 * s, 280 * s, 280 * s);
+  g.strokeStyle = '#454b54';
+  g.lineWidth = 4;
   for (const x of V_ROADS) {
-    ctx.beginPath();
-    ctx.moveTo(mx + x * sx, my);
-    ctx.lineTo(mx + x * sx, my + MAP_H);
-    ctx.stroke();
+    g.beginPath(); g.moveTo(x * s, 0); g.lineTo(x * s, 1740 * s); g.stroke();
   }
   for (const y of H_ROADS) {
-    ctx.beginPath();
-    ctx.moveTo(mx, my + y * sy);
-    ctx.lineTo(mx + MAP_W, my + y * sy);
-    ctx.stroke();
+    g.beginPath(); g.moveTo(0, y * s); g.lineTo(190, y * s); g.stroke();
   }
-  // Mission target.
-  const t = state.missionTarget;
-  if (t) {
-    ctx.fillStyle = '#ffd34d';
-    ctx.save();
-    ctx.translate(mx + t.x * sx, my + t.y * sy);
-    ctx.rotate(Math.PI / 4);
-    ctx.fillRect(-4, -4, 8, 8);
-    ctx.restore();
-  }
-  // Rivals.
-  ctx.fillStyle = '#ff5040';
-  for (const e of state.enemies) {
-    if (e.alive) ctx.fillRect(mx + e.x * sx - 2, my + e.y * sy - 2, 4, 4);
-  }
-  // Police.
-  ctx.fillStyle = '#4d9fff';
-  for (const pc of state.police) {
-    ctx.beginPath();
-    ctx.arc(mx + pc.x * sx, my + pc.y * sy, 3, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  if (state.roadblock) {
-    for (const rc of state.roadblock.cars) {
-      ctx.beginPath();
-      ctx.arc(mx + rc.x * sx, my + rc.y * sy, 3, 0, Math.PI * 2);
-      ctx.fill();
-    }
-  }
-  // The CONDOR helicopter.
-  if (state.heli) {
-    ctx.fillStyle = '#ffffff';
-    ctx.beginPath();
-    ctx.arc(mx + state.heli.x * sx, my + state.heli.y * sy, 3.5, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  // The garage: a gold G.
-  const gp = state.world.places.garage;
-  if (gp) {
-    ctx.fillStyle = '#ffd34d';
-    ctx.fillRect(mx + gp.x * sx - 4, my + gp.y * sy - 4, 8, 8);
-    ctx.fillStyle = '#20242c';
-    ctx.font = 'bold 7px system-ui, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText('G', mx + gp.x * sx, my + gp.y * sy + 2.5);
-  }
-  // Player arrow.
-  const p = state.player;
-  ctx.save();
-  ctx.translate(mx + p.x * sx, my + p.y * sy);
-  ctx.rotate(p.angle);
-  ctx.fillStyle = '#ffffff';
-  ctx.beginPath();
-  ctx.moveTo(6, 0);
-  ctx.lineTo(-4, -4);
-  ctx.lineTo(-4, 4);
-  ctx.closePath();
-  ctx.fill();
-  ctx.restore();
-  // View frame.
-  ctx.strokeStyle = 'rgba(255,255,255,0.35)';
-  ctx.strokeRect(
-    mx + view.camX * sx, my + view.camY * sy,
-    view.w * sx, view.h * sy,
-  );
-  ctx.restore();
+  return c;
 }
 
-export function drawHud(ctx, state, view) {
+export function createHud(world) {
+  return {
+    base: buildMinimapBase(world),
+    map: el('minimap').getContext('2d'),
+    cache: {},
+    garageTick: -1,
+  };
+}
+
+function setText(hud, id, text) {
+  if (hud.cache[id] === text) return;
+  hud.cache[id] = text;
+  el(id).textContent = text;
+}
+
+function setShown(hud, id, show) {
+  const key = 'show:' + id;
+  if (hud.cache[key] === show) return;
+  hud.cache[key] = show;
+  el(id).style.display = show ? '' : 'none';
+}
+
+export function updateHud(hud, state) {
   const p = state.player;
-  ctx.save();
-  ctx.textBaseline = 'alphabetic';
+  const px = p.car ? p.car.x : p.x;
+  const py = p.car ? p.car.y : p.y;
 
-  // Top-left: money, health, armour, respect, current weapon.
-  ctx.fillStyle = 'rgba(8, 18, 28, 0.72)';
-  ctx.fillRect(14, 12, 250, 128);
-  ctx.strokeStyle = 'rgba(255,255,255,0.25)';
-  ctx.strokeRect(14.5, 12.5, 250, 128);
-  ctx.fillStyle = '#7de07d';
-  ctx.font = 'bold 24px system-ui, sans-serif';
-  ctx.textAlign = 'left';
-  ctx.fillText(formatMoney(state.money), 26, 42);
-  ctx.font = '13px system-ui, sans-serif';
-  ctx.fillStyle = '#ffffff';
-  ctx.fillText('NYAWA', 26, 64);
-  drawBar(ctx, 82, 54, 170, 11, p.health / 100, '#e04040', 'rgba(255,255,255,0.2)');
-  if (p.armor > 0) {
-    ctx.fillText('ARMOR', 26, 86);
-    drawBar(ctx, 82, 76, 170, 11, p.armor / 100, '#4d9fff', 'rgba(255,255,255,0.2)');
-  }
-  // Respect: rank name, points, and progress toward the next rank.
-  const respect = state.respect || 0;
-  const rank = rankFor(respect);
-  const next = nextRank(respect);
-  ctx.fillStyle = '#ffd34d';
-  ctx.font = 'bold 13px system-ui, sans-serif';
-  ctx.fillText('RESPECT', 26, 108);
-  ctx.fillStyle = '#ffffff';
-  ctx.font = '13px system-ui, sans-serif';
-  ctx.fillText(rank.name + ' · ' + respect, 108, 108);
-  if (next) {
-    const frac = (respect - rank.min) / (next.min - rank.min);
-    drawBar(ctx, 26, 116, 226, 7, frac, '#ffd34d', 'rgba(255,255,255,0.18)');
+  setText(hud, 'cash', '$' + state.money);
+  el('healthfill').style.width = Math.max(0, p.health) + '%';
+  el('armorfill').style.width = Math.max(0, p.armor) + '%';
+
+  const rank = rankFor(state.respect);
+  const next = nextRank(state.respect);
+  setText(hud, 'respect',
+    'RESPECT ' + state.respect + ' — ' + rank.name.toUpperCase()
+    + (next ? ' · next: ' + next.name + ' at ' + next.min : ' · MAX RANK'));
+  setText(hud, 'weapon', weaponHudText(state));
+  setText(hud, 'starson', '★'.repeat(state.wanted));
+  setText(hud, 'starsoff', '☆'.repeat(Math.max(0, 5 - state.wanted)));
+  setText(hud, 'clock', formatClock(state.clockMinutes));
+  setText(hud, 'district', districtAt(state.world, px, py));
+  setText(hud, 'speed', p.car
+    ? Math.round(Math.abs(p.car.speed) * 0.36) + ' km/h' : '');
+
+  // Objective + distance to its marker.
+  let target = null;
+  if (state.missions.fare) {
+    target = state.missions.fare.pickedUp
+      ? state.missions.fare.dest : state.missions.fare;
   } else {
-    drawBar(ctx, 26, 116, 226, 7, 1, '#ffd34d', 'rgba(255,255,255,0.18)');
+    target = missionTargetPos(state) || raceTarget(state);
   }
-  // Weapon line under the panel.
-  ctx.fillStyle = 'rgba(8, 18, 28, 0.72)';
-  ctx.fillRect(14, 148, 250, 30);
-  ctx.strokeStyle = 'rgba(255,255,255,0.25)';
-  ctx.strokeRect(14.5, 148.5, 250, 30);
-  ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 15px system-ui, sans-serif';
-  ctx.fillText(weaponHudText(state), 26, 169);
-  ctx.fillStyle = '#c8d4dc';
-  ctx.font = '11px system-ui, sans-serif';
-  ctx.textAlign = 'right';
-  ctx.fillText('1-4 ganti', 252, 168);
-  ctx.textAlign = 'left';
-
-  // Top-right: wanted stars, clock, district.
-  ctx.fillStyle = 'rgba(8, 18, 28, 0.72)';
-  ctx.fillRect(view.w - 264, 12, 250, 84);
-  ctx.strokeStyle = 'rgba(255,255,255,0.25)';
-  ctx.strokeRect(view.w - 263.5, 12.5, 250, 84);
-  drawStars(ctx, view.w - 252, 36, state.wanted);
-  ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 20px system-ui, sans-serif';
-  ctx.textAlign = 'right';
-  ctx.fillText(formatClock(state.clockMinutes), view.w - 26, 66);
-  ctx.font = '13px system-ui, sans-serif';
-  ctx.fillStyle = '#c8d4dc';
-  ctx.fillText(districtAt(state.world, p.x, p.y), view.w - 26, 86);
-
-  // Minimap, bottom-left.
-  drawMinimap(ctx, state, view);
-
-  // Bottom-right: mission panel.
-  const mission = currentMission(state.missions);
-  const obj = missionObjectiveText(state);
-  const t = state.missionTarget;
-  const panelW = 380;
-  const panelX = view.w - panelW - 16;
-  const panelY = view.h - 96;
-  ctx.fillStyle = 'rgba(8, 18, 28, 0.78)';
-  ctx.fillRect(panelX, panelY, panelW, 80);
-  ctx.strokeStyle = 'rgba(255,211,77,0.6)';
-  ctx.strokeRect(panelX + 0.5, panelY + 0.5, panelW, 80);
-  ctx.textAlign = 'left';
-  ctx.fillStyle = '#ffd34d';
-  ctx.font = 'bold 15px system-ui, sans-serif';
-  ctx.fillText(mission ? mission.title : 'FREE ROAM', panelX + 14, panelY + 24);
-  ctx.fillStyle = '#ffffff';
-  ctx.font = '14px system-ui, sans-serif';
-  ctx.fillText(obj, panelX + 14, panelY + 46);
-  if (t) {
-    ctx.fillStyle = '#c8d4dc';
-    ctx.fillText(Math.round(dist(p.x, p.y, t.x, t.y)) + ' m ke tujuan', panelX + 14, panelY + 66);
-  }
-
-  // Speed, when driving.
-  if (!p.onFoot && p.car) {
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 26px system-ui, sans-serif';
-    ctx.textAlign = 'right';
-    ctx.fillText(Math.round(Math.abs(p.car.speed) * 0.36) + ' km/h', view.w - 420, view.h - 30);
-    ctx.font = '12px system-ui, sans-serif';
-    ctx.fillStyle = '#c8d4dc';
-    ctx.fillText('E keluar mobil · R radio · G garasi', view.w - 420, view.h - 12);
-  } else {
-    ctx.fillStyle = '#c8d4dc';
-    ctx.font = '12px system-ui, sans-serif';
-    ctx.textAlign = 'right';
-    ctx.fillText('WASD jalan · E masuk mobil · Spasi tembak · F pukul · 1-4 senjata · P jeda', view.w - 420, view.h - 12);
-  }
-
-  // Race timer, top-centre, while the Marina Loop is live.
+  let obj = missionObjectiveText(state);
   if (state.race && state.race.active) {
-    ctx.fillStyle = 'rgba(8, 18, 28, 0.78)';
-    ctx.fillRect(view.w / 2 - 150, 12, 300, 40);
-    ctx.strokeStyle = 'rgba(55,214,122,0.7)';
-    ctx.strokeRect(view.w / 2 - 149.5, 12.5, 300, 40);
-    ctx.fillStyle = '#37d67a';
-    ctx.font = 'bold 17px system-ui, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText(
-      'BALAPAN · CP ' + (state.race.idx + 1) + '/' + RACE_POINTS.length + ' · ' + formatRaceTime(state.race.time),
-      view.w / 2, 39,
-    );
-    ctx.textAlign = 'left';
+    obj = 'Marina Loop — checkpoint ' + (state.race.idx + 1) + '/'
+      + '6 · ' + state.race.time.toFixed(1) + 's';
+  }
+  if (target) obj += '  ·  ' + Math.round(dist(px, py, target.x, target.y)) + 'm';
+  setText(hud, 'objective', obj);
+
+  const showMsg = state.message && state.clockSeconds < state.messageUntil;
+  setShown(hud, 'message', !!showMsg);
+  if (showMsg) setText(hud, 'message', state.message);
+  const showDlg = state.dialog && state.clockSeconds < state.dialog.until;
+  setShown(hud, 'dialog', !!showDlg);
+  if (showDlg) setText(hud, 'dialog', state.dialog.text);
+
+  if (state.race && state.race.active) {
+    setShown(hud, 'racetime', true);
+    setText(hud, 'racetime', 'MARINA LOOP · ' + formatRaceTime(state.race.time)
+      + ' · CHECKPOINT ' + (state.race.idx + 1) + '/6');
+  } else {
+    setShown(hud, 'racetime', false);
   }
 
-  // Garage prompt when Mara is at Bang Udin's door.
-  if (!state.garageMenu && nearGarage(state)) {
-    ctx.fillStyle = 'rgba(8, 18, 28, 0.85)';
-    ctx.font = 'bold 15px system-ui, sans-serif';
-    const label = 'Tekan G — Garasi Bang Udin';
-    const gw = ctx.measureText(label).width + 32;
-    ctx.fillRect((view.w - gw) / 2, view.h - 250, gw, 34);
-    ctx.strokeStyle = 'rgba(255,211,77,0.6)';
-    ctx.strokeRect((view.w - gw) / 2 + 0.5, view.h - 249.5, gw, 34);
-    ctx.fillStyle = '#ffd34d';
-    ctx.textAlign = 'center';
-    ctx.fillText(label, view.w / 2, view.h - 228);
-    ctx.textAlign = 'left';
-  }
+  // Overlays.
+  setShown(hud, 'title', state.mode === 'title');
+  setShown(hud, 'pause', state.mode === 'pause');
+  setShown(hud, 'busted', state.mode === 'busted');
+  setShown(hud, 'wasted', state.mode === 'wasted');
+  setShown(hud, 'hudmain', state.mode !== 'title');
 
-  // Dialog line (story) above the mission panel.
-  if (state.dialog && state.clockSeconds < state.dialog.until) {
-    ctx.fillStyle = 'rgba(8, 18, 28, 0.85)';
-    const dw = 640;
-    ctx.fillRect((view.w - dw) / 2, view.h - 190, dw, 52);
-    ctx.strokeStyle = 'rgba(255,255,255,0.3)';
-    ctx.strokeRect((view.w - dw) / 2 + 0.5, view.h - 189.5, dw, 52);
-    ctx.fillStyle = '#ffe9a8';
-    ctx.font = 'italic 15px system-ui, sans-serif';
-    ctx.textAlign = 'center';
-    wrapText(ctx, state.dialog.text, view.w / 2, view.h - 168, dw - 24, 20);
-  }
-
-  // Toast message.
-  if (state.message && state.clockSeconds < state.messageUntil) {
-    ctx.fillStyle = 'rgba(8, 18, 28, 0.85)';
-    ctx.font = 'bold 15px system-ui, sans-serif';
-    const mw = ctx.measureText(state.message).width + 32;
-    ctx.fillRect((view.w - mw) / 2, 112, mw, 34);
-    ctx.fillStyle = '#ffffff';
-    ctx.textAlign = 'center';
-    ctx.fillText(state.message, view.w / 2, 134);
-  }
-
-  ctx.restore();
-}
-
-function wrapText(ctx, text, cx, y, maxW, lineH) {
-  const words = text.split(' ');
-  const lines = [];
-  let line = '';
-  for (const w of words) {
-    const test = line ? line + ' ' + w : w;
-    if (ctx.measureText(test).width > maxW && line) {
-      lines.push(line);
-      line = w;
-    } else {
-      line = test;
+  // Garage menu (rebuilt at most ~4x per second while open).
+  const gOpen = !!state.garageOpen;
+  setShown(hud, 'garagemenu', gOpen);
+  if (gOpen) {
+    const tick = Math.floor(state.clockSeconds * 4);
+    if (hud.garageTick !== tick) {
+      hud.garageTick = tick;
+      const items = garageMenuItems(state);
+      el('garageitems').innerHTML = items.map((it, i) =>
+        '<div class="gitem"><span class="gkey">' + (i + 1) + '</span> '
+        + it.label + '<br><small style="color:#9fb2c1">' + it.detail
+        + '</small></div>').join('');
+      setText(hud, 'garageresult', state.garageMessage || '');
+      setText(hud, 'garagecash', 'Your cash: $' + state.money);
     }
   }
-  if (line) lines.push(line);
-  lines.forEach((l, i) => ctx.fillText(l, cx, y + i * lineH));
+
+  drawMinimap(hud, state, px, py);
 }
 
-function drawTitleScreen(ctx, state, view) {
-  ctx.save();
-  // Dim the city behind the menu.
-  ctx.fillStyle = 'rgba(6, 12, 22, 0.62)';
-  ctx.fillRect(0, 0, view.w, view.h);
-  ctx.textAlign = 'center';
-  ctx.fillStyle = '#ffd34d';
-  ctx.font = 'bold 84px system-ui, sans-serif';
-  ctx.fillText('SOLMAR CITY', view.w / 2, 220);
-  ctx.fillStyle = '#ffffff';
-  ctx.font = 'italic 26px system-ui, sans-serif';
-  ctx.fillText('Kisah Mara Voss — sopir sewaan, kru perampokan, satu kota.', view.w / 2, 268);
-  ctx.font = '16px system-ui, sans-serif';
-  ctx.fillStyle = '#c8d4dc';
-  const lines = [
-    'Jelajahi Solmar City dengan berjalan kaki atau berkendara.',
-    'Curi mobil, kabur dari roadblock & helikopter polisi, selesaikan 8 misi Dax.',
-    'Naikkan Respect sampai Legenda Solmar, tune mobilmu di Garasi Bang Udin.',
-    'WASD / panah bergerak · E masuk & keluar mobil · Spasi / klik tembak · F pukul',
-    '1-4 ganti senjata · G garasi · R radio · P jeda & simpan · HUD: kas, Respect, minimap.',
-  ];
-  lines.forEach((l, i) => ctx.fillText(l, view.w / 2, 330 + i * 26));
-  const blink = state.shot ? true : (Math.floor(state.clockSeconds * 2) % 2 === 0);
-  if (blink) {
-    ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 30px system-ui, sans-serif';
-    ctx.fillText('Tekan ENTER untuk bermain', view.w / 2, 500);
+function drawMinimap(hud, state, px, py) {
+  const g = hud.map;
+  const s = 190 / 2560;
+  g.drawImage(hud.base, 0, 0);
+  const dot = (x, y, color, r) => {
+    g.fillStyle = color;
+    g.beginPath();
+    g.arc(x * s, y * s, r, 0, 6.2832);
+    g.fill();
+  };
+  const garage = state.world.places.garage;
+  dot(garage.x, garage.y, '#ffb340', 3);
+  let target = null;
+  if (state.missions.fare) {
+    target = state.missions.fare.pickedUp
+      ? state.missions.fare.dest : state.missions.fare;
+  } else {
+    target = missionTargetPos(state) || raceTarget(state);
   }
-  if (hasSave()) {
-    ctx.fillStyle = '#7de07d';
-    ctx.font = '18px system-ui, sans-serif';
-    ctx.fillText('Save ditemukan — tekan C untuk Lanjutkan', view.w / 2, 540);
+  if (target) dot(target.x, target.y, '#ffd23e', 3.4);
+  if (state.roadblock) {
+    for (const rc of state.roadblock.cars) dot(rc.x, rc.y, '#3f8cff', 2.4);
   }
-  ctx.fillStyle = '#8a97a3';
-  ctx.font = '13px system-ui, sans-serif';
-  ctx.fillText('Game orisinal — kota, karakter, dan cerita dibuat sendiri. Tanpa aset game komersial.', view.w / 2, 640);
-  ctx.fillText('Suara disintesis dengan WebAudio · Progres tersimpan otomatis di browser ini.', view.w / 2, 664);
-  ctx.restore();
-}
-
-function drawOverlayScreen(ctx, view, title, sub, color) {
-  ctx.save();
-  ctx.fillStyle = 'rgba(6, 12, 22, 0.72)';
-  ctx.fillRect(0, 0, view.w, view.h);
-  ctx.textAlign = 'center';
-  ctx.fillStyle = color;
-  ctx.font = 'bold 64px system-ui, sans-serif';
-  ctx.fillText(title, view.w / 2, 330);
-  ctx.fillStyle = '#ffffff';
-  ctx.font = '20px system-ui, sans-serif';
-  ctx.fillText(sub, view.w / 2, 380);
-  ctx.font = 'bold 22px system-ui, sans-serif';
-  ctx.fillText('Tekan ENTER untuk lanjut', view.w / 2, 450);
-  ctx.restore();
-}
-
-export function drawGarageMenu(ctx, state, view) {
-  ctx.save();
-  ctx.fillStyle = 'rgba(6, 12, 22, 0.78)';
-  ctx.fillRect(0, 0, view.w, view.h);
-  const w = 560;
-  const h = 400;
-  const x = (view.w - w) / 2;
-  const y = (view.h - h) / 2;
-  ctx.fillStyle = 'rgba(10, 20, 30, 0.95)';
-  ctx.fillRect(x, y, w, h);
-  ctx.strokeStyle = 'rgba(255,211,77,0.7)';
-  ctx.lineWidth = 2;
-  ctx.strokeRect(x + 1, y + 1, w - 2, h - 2);
-  ctx.textAlign = 'center';
-  ctx.fillStyle = '#ffd34d';
-  ctx.font = 'bold 34px system-ui, sans-serif';
-  ctx.fillText('GARASI BANG UDIN', view.w / 2, y + 52);
-  ctx.fillStyle = '#7de07d';
-  ctx.font = 'bold 19px system-ui, sans-serif';
-  ctx.fillText('Kas: ' + formatMoney(state.money), view.w / 2, y + 84);
-  ctx.textAlign = 'left';
-  const items = garageMenuItems(state);
-  items.forEach((item, i) => {
-    const iy = y + 128 + i * 44;
-    ctx.fillStyle = 'rgba(255,255,255,0.07)';
-    ctx.fillRect(x + 28, iy - 26, w - 56, 38);
-    ctx.fillStyle = '#ffd34d';
-    ctx.font = 'bold 17px system-ui, sans-serif';
-    ctx.fillText((i + 1) + '', x + 44, iy);
-    ctx.fillStyle = '#ffffff';
-    ctx.font = '16px system-ui, sans-serif';
-    ctx.fillText(item.label, x + 74, iy);
-    ctx.fillStyle = '#c8d4dc';
-    ctx.font = '13px system-ui, sans-serif';
-    ctx.textAlign = 'right';
-    ctx.fillText(item.detail, x + w - 44, iy);
-    ctx.textAlign = 'left';
-  });
-  ctx.fillStyle = '#c8d4dc';
-  ctx.font = '14px system-ui, sans-serif';
-  ctx.textAlign = 'center';
-  ctx.fillText('Tekan angka 1-5 untuk membeli · G atau P untuk keluar', view.w / 2, y + h - 22);
-  ctx.restore();
-}
-
-export function drawScreens(ctx, state, view) {
-  if (state.garageMenu) {
-    drawGarageMenu(ctx, state, view);
-    return;
-  }
-  if (state.mode === 'title') drawTitleScreen(ctx, state, view);
-  else if (state.mode === 'paused') {
-    drawOverlayScreen(ctx, view, 'JEDA', 'Progres tersimpan. Tekan P untuk lanjut.', '#ffffff');
-  } else if (state.mode === 'busted') {
-    drawOverlayScreen(ctx, view, 'TERTANGKAP!', 'Polisi membawamu ke kantor. Uang jaminan $100.', '#4d9fff');
-  } else if (state.mode === 'wasted') {
-    drawOverlayScreen(ctx, view, 'TUMBANG', 'Mara dilarikan ke St. Anselm Hospital. Biaya $100.', '#e04040');
-  }
+  for (const pc of state.police) dot(pc.x, pc.y, '#3f8cff', 2.4);
+  if (state.heli) dot(state.heli.x, state.heli.y, '#7fe7ff', 2.6);
+  // Player arrow.
+  const a = state.player.car ? state.player.car.angle : state.player.angle;
+  g.fillStyle = '#ffffff';
+  g.save();
+  g.translate(px * s, py * s);
+  g.rotate(a);
+  g.beginPath();
+  g.moveTo(5, 0); g.lineTo(-3.4, -3); g.lineTo(-3.4, 3); g.closePath();
+  g.fill();
+  g.restore();
 }

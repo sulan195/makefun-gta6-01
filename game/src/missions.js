@@ -5,92 +5,94 @@
 // Dax only trusts Mara with bigger work once the street knows her name.
 
 import { dist } from './util.js';
-import { makeCar, makeEnemy, raiseWanted } from './entities.js';
+import { makeCar } from './cars.js';
+import { makeEnemy } from './entities.js';
+import { raiseWanted } from './police.js';
 import { playCash, playPickup, playGunshot } from './audio.js';
 import { addRespect } from './progression.js';
 
 export const MISSION_DEFS = [
   {
     id: 'taxi',
-    title: 'Misi 1 — Taksi Pertama',
-    briefing: 'Dax: "Mara, penumpang menunggu di Old Town. Jemput dia, antar ke Marina. Jangan bikin ribut."',
+    title: 'Mission 1 — First Taxi Run',
+    briefing: 'Dax: "Mara, a passenger is waiting in Old Town. Pick her up, take her to the Marina. Keep it quiet."',
     reward: 150, respect: 5,
     steps: [
-      { type: 'goto', text: 'Jemput penumpang di Old Town', target: 'taxiStand', radius: 70, needCar: true },
-      { type: 'pickup', text: 'Penumpang naik — antar ke Marina West', target: 'marina', radius: 80 },
+      { type: 'goto', text: 'Pick up the passenger in Old Town', target: 'taxiStand', radius: 70, needCar: true },
+      { type: 'pickup', text: 'Passenger aboard — drive to Marina West', target: 'marina', radius: 80 },
     ],
   },
   {
     id: 'steal',
-    title: 'Misi 2 — Mobil Pesanan',
-    briefing: 'Dax: "Kru butuh sedan abu-abu di Harbour Yard. Ambil, lalu hilang dari radar polisi."',
+    title: 'Mission 2 — The Ordered Car',
+    briefing: 'Dax: "The crew needs the gray sedan at Harbour Yard. Take it, then shake the police."',
     reward: 300, respect: 8,
     steps: [
-      { type: 'goto', text: 'Pergi ke Harbour Yard', target: 'harbourYard', radius: 90 },
-      { type: 'steal', text: 'Curi sedan abu-abu itu (tekan E)', target: 'harbourYard', radius: 60 },
-      { type: 'escape', text: 'Kabur! Turunkan wanted sampai 0', target: null, radius: 0 },
+      { type: 'goto', text: 'Go to Harbour Yard', target: 'harbourYard', radius: 90 },
+      { type: 'steal', text: 'Steal the gray sedan (press E)', target: 'harbourYard', radius: 60 },
+      { type: 'escape', text: 'Escape! Drop your wanted level to 0', target: null, radius: 0 },
     ],
   },
   {
     id: 'package',
-    title: 'Misi 3 — Paket Panas',
-    briefing: 'Dax: "Paket ini harus sampai ke Downtown — dan polisi sudah mengendusmu. Jangan ketangkap."',
+    title: 'Mission 3 — Hot Package',
+    briefing: 'Dax: "This package has to reach Downtown — and the police are already onto you. Do not get caught."',
     reward: 500, respect: 10,
     steps: [
-      { type: 'pickup', text: 'Ambil paket di Palmera Park', target: 'parkGate', radius: 70, package: true },
-      { type: 'deliver', text: 'Antar paket ke Downtown plaza', target: 'downtown', radius: 80 },
+      { type: 'pickup', text: 'Pick up the package at Palmera Park', target: 'parkGate', radius: 70, package: true },
+      { type: 'deliver', text: 'Deliver the package to Downtown plaza', target: 'downtown', radius: 80 },
     ],
   },
   {
     id: 'balas',
-    title: 'Misi 4 — Balas Setimpal',
-    briefing: 'Dax: "Kru Sanca membakar mobil simpanan kita di Southside. Gantian: hancurkan mobil andalan mereka sampai meledak."',
+    title: 'Mission 4 — Payback',
+    briefing: 'Dax: "The Sanca crew torched our stash car in Southside. Your turn: destroy their pride and joy until it blows."',
     reward: 700, respect: 12,
     steps: [
-      { type: 'goto', text: 'Pergi ke Southside', target: 'southside', radius: 90 },
-      { type: 'destroy', text: 'Hancurkan mobil kru Sanca — tembak sampai meledak', target: null, radius: 0 },
+      { type: 'goto', text: 'Go to Southside', target: 'southside', radius: 90 },
+      { type: 'destroy', text: 'Destroy the Sanca crew car — shoot it until it explodes', target: null, radius: 0 },
     ],
   },
   {
     id: 'kurir',
-    title: 'Misi 5 — Kurir Tengah Malam',
-    briefing: 'Sinta: "Dokumen di Marina West harus sampai ke Old Town malam ini juga. Begitu kamu bergerak, polisi akan mengendus — jangan berhenti."',
+    title: 'Mission 5 — Midnight Courier',
+    briefing: 'Sinta: "Documents at Marina West must reach Old Town tonight. The moment you move, the police will catch the scent — do not stop."',
     reward: 900, respect: 15,
     steps: [
-      { type: 'pickup', text: 'Ambil dokumen di Marina West', target: 'marina', radius: 75, package: true, raiseWanted: 3 },
-      { type: 'deliver', text: 'Antar dokumen ke Taxi stand, Old Town', target: 'taxiStand', radius: 80 },
+      { type: 'pickup', text: 'Pick up the documents at Marina West', target: 'marina', radius: 75, package: true, raiseWanted: 3 },
+      { type: 'deliver', text: 'Deliver the documents to the Taxi stand, Old Town', target: 'taxiStand', radius: 80 },
     ],
   },
   {
     id: 'kawal',
-    title: 'Misi 6 — Kawal Sinta',
-    briefing: 'Dax: "Jemput Sinta di Downtown plaza, antar ke Harbour Yard. Kru Sanca mengincarnya — jaga dia."',
+    title: 'Mission 6 — Escort Sinta',
+    briefing: 'Dax: "Pick Sinta up at Downtown plaza and take her to Harbour Yard. The Sanca crew is hunting her — keep her safe."',
     reward: 1200, respect: 18, respectReq: 45,
     steps: [
-      { type: 'pickup', text: 'Jemput Sinta di Downtown plaza', target: 'downtown', radius: 75, passenger: true },
-      { type: 'deliver', text: 'Antar Sinta ke Harbour Yard', target: 'harbourYard', radius: 85 },
+      { type: 'pickup', text: 'Pick up Sinta at Downtown plaza', target: 'downtown', radius: 75, passenger: true },
+      { type: 'deliver', text: 'Take Sinta to Harbour Yard', target: 'harbourYard', radius: 85 },
     ],
   },
   {
     id: 'gudang',
-    title: 'Misi 7 — Gudang Harbour',
-    briefing: 'Dax: "Mobil berisi barang bukti kita diparkir kru Sanca di Harbour Yard. Ledakkan mobilnya, lalu hilang."',
+    title: 'Mission 7 — Harbour Warehouse',
+    briefing: 'Dax: "A car holding our evidence is parked by the Sanca crew at Harbour Yard. Blow the car, then disappear."',
     reward: 1600, respect: 22,
     steps: [
-      { type: 'goto', text: 'Pergi ke Harbour Yard', target: 'harbourYard', radius: 90 },
-      { type: 'destroy', text: 'Ledakkan mobil barang bukti itu', target: null, radius: 0 },
-      { type: 'escape', text: 'Kabur! Turunkan wanted sampai 0', target: null, radius: 0 },
+      { type: 'goto', text: 'Go to Harbour Yard', target: 'harbourYard', radius: 90 },
+      { type: 'destroy', text: 'Blow up the evidence car', target: null, radius: 0 },
+      { type: 'escape', text: 'Escape! Drop your wanted level to 0', target: null, radius: 0 },
     ],
   },
   {
     id: 'bank',
-    title: 'Misi 8 — Rampok Bank Solmar',
-    briefing: 'Dax: "Satu tarikan terakhir, Mara. Bank Solmar. Ambil uangnya — wanted-mu akan penuh — lalu hilang ke Garasi Bang Udin."',
+    title: 'Mission 8 — The Bank Solmar Job',
+    briefing: 'Dax: "One last score, Mara. Bank Solmar. Take the money — your wanted level will max out — then disappear to Udin\'s Garage."',
     reward: 3000, respect: 30, respectReq: 80, clearWantedOnComplete: true,
     steps: [
-      { type: 'goto', text: 'Pergi ke Bank Solmar', target: 'bank', radius: 80 },
-      { type: 'pickup', text: 'Ambil uang di Bank Solmar', target: 'bank', radius: 70, package: true, raiseWanted: 5 },
-      { type: 'goto', text: 'Hilang ke Garasi Bang Udin — di sana kamu aman', target: 'garage', radius: 95 },
+      { type: 'goto', text: 'Go to Bank Solmar', target: 'bank', radius: 80 },
+      { type: 'pickup', text: 'Take the money at Bank Solmar', target: 'bank', radius: 70, package: true, raiseWanted: 5 },
+      { type: 'goto', text: 'Disappear to Udin\'s Garage — you are safe there', target: 'garage', radius: 95 },
     ],
   },
 ];
@@ -122,13 +124,13 @@ export function currentStep(missions) {
 
 export function missionObjectiveText(state) {
   const ms = state.missions;
-  if (ms.fare) return 'Antar penumpang ke ' + ms.fare.name;
+  if (ms.fare) return 'Take the passenger to ' + ms.fare.name;
   if (ms.waiting) {
     const def = currentMission(ms);
-    return 'Butuh Respect ' + (def ? def.respectReq : 0) + ' untuk misi berikutnya — kerjakan fare & aktivitas jalanan';
+    return 'You need Respect ' + (def ? def.respectReq : 0) + ' for the next mission — run fares & street activities';
   }
   const step = currentStep(ms);
-  if (!step) return 'Free roam — Solmar City milikmu';
+  if (!step) return 'Free roam — Solmar City is yours';
   return step.text;
 }
 
@@ -148,7 +150,7 @@ export function missionTargetPos(state) {
 function placeTargetCar(state, placeKey, color, guards) {
   const spot = state.world.places[placeKey];
   const car = makeCar(spot.x + 30, spot.y + 10, 0, {
-    kind: 'parked', driver: false, color,
+    kind: 'parked', driver: false, color, rng: state.rng,
   });
   car.missionTarget = true;
   state.cars.push(car);
@@ -176,10 +178,10 @@ export function startMission(state, index) {
   if (!def) return;
   if ((def.respectReq || 0) > (state.respect || 0)) {
     ms.waiting = true;
-    state.message = 'Dax: "Belum saatnya, Mara. Naikkan Respect-mu dulu."';
+    state.message = 'Dax: "Not yet, Mara. Build your Respect first."';
     state.dialog = {
-      text: 'Dax: "' + def.title + ' menunggu. Butuh Respect ' + def.respectReq
-        + ' — selesaikan fare dan aktivitas jalanan untuk menaikkannya."',
+      text: 'Dax: "' + def.title + ' is waiting. It needs Respect ' + def.respectReq
+        + ' — complete fares and street activities to earn it."',
       until: state.clockSeconds + 7,
     };
     return;
@@ -228,10 +230,10 @@ export function completeMission(state, def) {
   addRespect(state, def.respect || 0);
   state.missionsDone.push(def.id);
   playCash(state.audio);
-  state.message = def.title + ' selesai! +$' + def.reward;
+  state.message = def.title + ' complete! +$' + def.reward;
   state.messageUntil = state.clockSeconds + 4;
   state.dialog = {
-    text: 'Dax: "Bagus, Mara. $' + def.reward + ' masuk. Lanjut."',
+    text: 'Dax: "Good work, Mara. $' + def.reward + ' is in. Keep going."',
     until: state.clockSeconds + 6,
   };
   ms.index += 1;
@@ -243,7 +245,7 @@ export function completeMission(state, def) {
   if (ms.index < MISSION_DEFS.length) {
     startMission(state, ms.index);
   } else {
-    state.message = 'Semua misi selesai! Free roam — cari penumpang, balapan di Marina, atau kejar Respect.';
+    state.message = 'All missions complete! Free roam — pick up fares, race at the Marina, or chase Respect.';
     state.messageUntil = state.clockSeconds + 5;
     startFare(state);
   }
@@ -257,7 +259,7 @@ export function startFare(state) {
   if (dest === from) return;
   ms.fare = { x: from.x, y: from.y, name: from.name, dest, reward: 60 };
   ms.fareTimer = 0;
-  state.message = 'Penumpang baru di ' + from.name + ' — jemput dia!';
+  state.message = 'A new passenger at ' + from.name + ' — pick them up!';
 }
 
 // One tick of the mission state machine. Pure-ish: mutates state, no drawing.
@@ -265,7 +267,6 @@ export function updateMissions(state, dt) {
   const ms = state.missions;
   const p = state.player;
 
-  // A Respect-gated mission activates as soon as Mara qualifies.
   if (ms.waiting) {
     const def = currentMission(ms);
     if (def && (state.respect || 0) >= (def.respectReq || 0)) {
@@ -282,14 +283,14 @@ export function updateMissions(state, dt) {
     if (!ms.fare.pickedUp) {
       if (dist(p.x, p.y, ms.fare.x, ms.fare.y) < 70) {
         ms.fare.pickedUp = true;
-        state.message = 'Penumpang naik! Antar ke ' + dest.name;
+        state.message = 'Passenger aboard! Take them to ' + dest.name;
         playPickup(state.audio);
       }
     } else if (dist(p.x, p.y, dest.x, dest.y) < 80) {
       state.money += ms.fare.reward;
       addRespect(state, 2);
       playCash(state.audio);
-      state.message = 'Fare selesai! +$' + ms.fare.reward;
+      state.message = 'Fare complete! +$' + ms.fare.reward;
       ms.fare = null;
       startFare(state);
     }
@@ -302,14 +303,13 @@ export function updateMissions(state, dt) {
   if (step.type === 'goto') {
     if (target && dist(p.x, p.y, target.x, target.y) < step.radius) {
       if (step.needCar) {
-        // Taxi pickup: the passenger only boards a car.
         if (p.car) {
           ms.passenger = true;
           playPickup(state.audio);
-          state.message = 'Penumpang: "Ke Marina West, cepat!"';
+          state.message = 'Passenger: "Marina West, and step on it!"';
           advanceStep(state);
         } else {
-          state.message = 'Penumpang menunggu mobil — tekan E di dekat mobil.';
+          state.message = 'The passenger is waiting for a car — press E near one.';
         }
       } else {
         advanceStep(state);
@@ -322,18 +322,18 @@ export function updateMissions(state, dt) {
         playPickup(state.audio);
         if (step.raiseWanted) {
           raiseWanted(state, step.raiseWanted);
-          state.message = 'Polisi mengendusmu! Wanted ' + state.wanted + ' — jangan berhenti!';
+          state.message = 'The police caught your scent! Wanted ' + state.wanted + ' — keep moving!';
         } else {
-          state.message = 'Paket diambil. Polisi sudah mengendusmu — hati-hati!';
+          state.message = 'Package picked up. The police are onto you — be careful!';
         }
         advanceStep(state);
       } else if (step.passenger) {
         if (!p.car) {
-          state.message = 'Kamu harus naik mobil dulu untuk menjemput.';
+          state.message = 'You need to be in a car to pick her up.';
         } else {
           ms.passenger = true;
           playPickup(state.audio);
-          state.message = 'Sinta: "Jangan sampai mereka menangkapku, Mara."';
+          state.message = 'Sinta: "Do not let them catch me, Mara."';
           advanceStep(state);
         }
       } else {
@@ -343,12 +343,12 @@ export function updateMissions(state, dt) {
   } else if (step.type === 'steal') {
     if (ms.targetCar && p.car === ms.targetCar) {
       raiseWanted(state, 2);
-      state.message = 'Mobil didapat! Polisi datang — KABUR!';
+      state.message = 'Car acquired! The police are coming — RUN!';
       advanceStep(state);
     }
   } else if (step.type === 'destroy') {
     if (ms.targetCar && ms.targetCar.exploded) {
-      state.message = 'Target hancur! Ledakannya terdengar se-Solmar.';
+      state.message = 'Target destroyed! The blast echoed across Solmar.';
       advanceStep(state);
     }
   } else if (step.type === 'escape') {
@@ -362,9 +362,11 @@ export function updateMissions(state, dt) {
   }
 }
 
-// Enemies: chase the player when close, shoot with poor aim.
+// Enemies: chase the player when close, shoot with poor aim. All dice
+// roll on the seeded state RNG so staged scenes stay deterministic.
 export function updateEnemies(state, dt) {
   const p = state.player;
+  const rng = state.rng;
   for (const e of state.enemies) {
     if (!e.alive) continue;
     const d = dist(e.x, e.y, p.x, p.y);
@@ -375,21 +377,20 @@ export function updateEnemies(state, dt) {
       if (d > 150) {
         e.x += Math.cos(want) * e.speed * dt;
         e.y += Math.sin(want) * e.speed * dt;
+        e.walkPhase += dt * 7;
       }
       if (d < 380 && e.fireCooldown <= 0) {
         e.fireCooldown = 1.4;
-        // Enemy shot: inaccurate, small damage.
-        const spread = (Math.random() - 0.5) * 0.35;
-        const hitChance = 0.3;
-        if (Math.random() < hitChance) {
+        const spread = (rng() - 0.5) * 0.35;
+        if (rng() < 0.3) {
           state.player.health = Math.max(0, state.player.health - 6);
-          state.message = 'Kamu ditembak rival!';
+          state.message = 'A rival shot you!';
+          state.messageUntil = state.clockSeconds + 1.5;
         }
-        state.particles.push({
-          x: e.x + Math.cos(want + spread) * 20,
-          y: e.y + Math.sin(want + spread) * 20,
-          vx: Math.cos(want + spread) * 300, vy: Math.sin(want + spread) * 300,
-          life: 0.15, maxLife: 0.15, color: '#ff9040', size: 2,
+        state.tracers.push({
+          x1: e.x + Math.cos(want + spread) * 20, y1: e.y + Math.sin(want + spread) * 20, h1: 15,
+          x2: e.x + Math.cos(want + spread) * 300, y2: e.y + Math.sin(want + spread) * 300, h2: 10,
+          life: 0.07, maxLife: 0.07,
         });
         playGunshot(state.audio);
       }

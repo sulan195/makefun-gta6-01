@@ -6,14 +6,16 @@
 //   2. Gate limits: game/ file count and size, screenshots (3-4, size and
 //      dimensions), index.html size, no network references in game/.
 //   3. Every game .js file parses as an ES module.
-//   4. The game loads in headless Chrome for every ?shot= without JS errors.
+//   4. The game loads in headless Chrome for every ?shot= without JS errors,
+//      with a live WebGL2 context.
 //   5. Pure-logic edge cases (10+): wanted, damage, enter/exit car, stealing,
-//      combat, missions, save, traffic lights, collisions, busted.
+//      combat, missions, save, traffic lights, collisions, busted, plus the
+//      3D geometry builders.
 
 import { execFile } from 'node:child_process';
 import {
   readdirSync, readFileSync, statSync, lstatSync, existsSync, rmSync, mkdirSync,
-  writeFileSync, copyFileSync,
+  copyFileSync,
 } from 'node:fs';
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -134,8 +136,8 @@ function testGates() {
     .filter((f) => f.endsWith('.js') || f.endsWith('.html'))
     .reduce((s, f) => s + statSync(f).size, 0);
   // The dossier embeds the game source as text under a 160 KiB cap
-  // (main.ts text_max_bytes); keep the source comfortably below it.
-  check('game source stays below the dossier text cap (under 150 KiB)', totalSrc < 153600, totalSrc + ' bytes');
+  // (main.ts text_max_bytes = 163840); the source must stay below it.
+  check('game source stays below the dossier text cap (160 KiB)', totalSrc < 163840, totalSrc + ' bytes');
 }
 
 // ------------------------------------------------------------------ parsing --
@@ -221,8 +223,10 @@ async function testHeadless() {
     } catch { /* reported below */ }
     await page.waitForTimeout(1200);
     const status = await page.evaluate(() => document.getElementById('status')?.textContent || '');
+    const glLive = await page.evaluate(() => window.__solmarGL === true);
     check(shot.name + ' page loads (status div ready)',
       ready && status.startsWith('Solmar City ready') && !status.includes('ERROR'), status.slice(0, 120));
+    check(shot.name + ' has a live WebGL2 context', glLive === true);
     check(shot.name + ' has no uncaught JS error', errors.length === 0, errors.join(' | ').slice(0, 200));
     await page.close();
   }
@@ -235,33 +239,45 @@ async function testLogic() {
   const util = await import('../game/src/util.js');
   const worldMod = await import('../game/src/world.js');
   const ent = await import('../game/src/entities.js');
+  const ply = await import('../game/src/player.js');
+  const carsMod = await import('../game/src/cars.js');
+  const pol = await import('../game/src/police.js');
+  const eff = await import('../game/src/effects.js');
   const mis = await import('../game/src/missions.js');
   const saveMod = await import('../game/src/save.js');
   const audioMod = await import('../game/src/audio.js');
-  const wpn = await import('../game/src/weapons.js');
+  const wpn = await import('../game/src/combat.js');
   const grg = await import('../game/src/garage.js');
   const heliMod = await import('../game/src/helicopter.js');
   const prog = await import('../game/src/progression.js');
   const raceMod = await import('../game/src/races.js');
+  const cityMod = await import('../game/src/city.js');
+  const modelsMod = await import('../game/src/models.js');
 
   function fakeState() {
     const world = worldMod.buildWorld(1);
     return {
       world, rng: util.makeRng(1), seed: 1,
-      player: ent.createPlayer(520, 470),
-      cars: [], peds: [], police: [], enemies: [], particles: [],
-      money: 50, wanted: 0, wantedTimer: 0,
+      player: ply.createPlayer(520, 470),
+      camera: ply.createCamera(),
+      cars: [], peds: [], police: [], enemies: [], particles: [], tracers: [],
+      money: 50, wanted: 0, wantedTimer: 0, hideTimer: 0,
       weapons: wpn.createWeaponState(), pickups: [],
-      respect: 0, garage: grg.createGarageState(), garageMenu: false,
+      respect: 0, garage: grg.createGarageState(), garageOpen: false,
       heli: null, roadblock: null, roadblockCooldown: 0, barriers: [], scorches: [],
       race: raceMod.createRaceState(), radioStation: 0,
       clockMinutes: 540, clockSeconds: 0,
       mode: 'play', missions: mis.createMissionState(), missionsDone: [],
-      message: '', messageUntil: 0, dialog: null, missionTarget: null,
-      busted: false,
+      message: '', messageUntil: 0, dialog: null,
       audio: audioMod.createAudio(),
-      input: null, view: { camX: 0, camY: 0, w: 1280, h: 800 },
+      input: null,
     };
+  }
+
+  function fakePed(s, x, y) {
+    const ped = ent.spawnPeds(s.world, s.rng, 1)[0];
+    ped.x = x; ped.y = y;
+    return ped;
   }
 
   // 1. Seeded RNG is deterministic.
@@ -276,71 +292,71 @@ async function testLogic() {
     && w1.buildings[0].y === w2.buildings[0].y);
 
   // 3. Wanted maths: hiding sheds one star per 6 seconds.
-  check('wanted decays one star per 6s hidden', ent.wantedAfterHiding(3, 12) === 1);
-  check('wanted never drops below 0', ent.wantedAfterHiding(1, 60) === 0);
+  check('wanted decays one star per 6s hidden', pol.wantedAfterHiding(3, 12) === 1);
+  check('wanted never drops below 0', pol.wantedAfterHiding(1, 60) === 0);
   check('raiseWanted caps at 5 stars', (() => {
-    const s = fakeState(); s.wanted = 4; ent.raiseWanted(s, 3); return s.wanted === 5;
+    const s = fakeState(); s.wanted = 4; pol.raiseWanted(s, 3); return s.wanted === 5;
   })());
 
   // 4. Armour absorbs 60% of damage; the other 40% hits health.
   check('armour absorbs damage before health', (() => {
     const s = fakeState();
     s.player.armor = 50; s.player.health = 100;
-    ent.damagePlayer(s, 10);
+    ply.damagePlayer(s, 10);
     return s.player.armor === 44 && s.player.health === 96;
   })());
 
   // 5. Entering a parked car works; exiting restores on-foot state.
   check('enter parked car, then exit', (() => {
     const s = fakeState();
-    const car = ent.makeCar(540, 470, 0, { kind: 'parked', driver: false });
+    const car = carsMod.makeCar(540, 470, 0, { kind: 'parked', driver: false });
     s.cars.push(car);
-    const res = ent.tryEnterCar(s);
+    const res = ply.tryEnterCar(s);
     if (!res.ok || s.player.onFoot) return false;
-    const ok = ent.exitCar(s);
+    const ok = ply.exitCar(s);
     return ok && s.player.onFoot && car.kind === 'parked';
   })());
 
   // 6. Stealing a driven car with police nearby raises wanted; without, not.
   check('car theft seen by police raises wanted', (() => {
     const s = fakeState();
-    const car = ent.makeCar(540, 470, 0, { kind: 'traffic', driver: true });
+    const car = carsMod.makeCar(540, 470, 0, { kind: 'traffic', driver: true });
     s.cars.push(car);
-    s.police.push(ent.makeCar(600, 470, 0, { kind: 'police' }));
-    ent.tryEnterCar(s);
+    s.police.push(carsMod.makeCar(600, 470, 0, { kind: 'police' }));
+    ply.tryEnterCar(s);
     return s.wanted === 1;
   })());
   check('car theft unseen raises no wanted', (() => {
     const s = fakeState();
-    const car = ent.makeCar(540, 470, 0, { kind: 'traffic', driver: true });
+    const car = carsMod.makeCar(540, 470, 0, { kind: 'traffic', driver: true });
     s.cars.push(car);
-    ent.tryEnterCar(s);
+    ply.tryEnterCar(s);
     return s.wanted === 0;
   })());
 
   // 7. No car nearby: enter fails cleanly.
   check('enter car with none nearby fails', (() => {
     const s = fakeState();
-    return ent.tryEnterCar(s).ok === false;
+    return ply.tryEnterCar(s).ok === false;
   })());
 
-  // 8. Pistol hits an enemy in front and respects its cooldown.
+  // 8. The pistol hits an enemy in front and respects its cooldown.
   check('pistol damages an enemy and cools down', (() => {
     const s = fakeState();
     const e = ent.makeEnemy(600, 470, s.rng);
     s.enemies.push(e);
-    const fired = ent.firePistol(s, 0);
+    const fired = wpn.fireWeapon(s, 0);
     const hpAfterFirst = e.health;
-    const firedAgain = ent.firePistol(s, 0); // still cooling down
+    const firedAgain = wpn.fireWeapon(s, 0); // still cooling down
     return fired && hpAfterFirst === 16 && firedAgain === false;
   })());
 
   // 9. Melee knocks a pedestrian down.
   check('melee knocks a pedestrian down', (() => {
     const s = fakeState();
-    s.peds.push({ x: 545, y: 470, angle: 0, speed: 40, shirt: '#fff', walking: true, flee: 0, down: false, downTimer: 0, axis: 'v', roadPos: 520 });
+    s.peds.push(fakePed(s, 545, 470));
     s.player.angle = 0;
-    ent.meleeAttack(s);
+    ply.meleeAttack(s);
     return s.peds[0].down === true;
   })());
 
@@ -348,7 +364,7 @@ async function testLogic() {
   check('mission 1 completes and pays', (() => {
     const s = fakeState();
     mis.startMission(s, 0);
-    const car = ent.makeCar(520, 520, 0, { kind: 'parked', driver: false });
+    const car = carsMod.makeCar(520, 520, 0, { kind: 'parked', driver: false });
     s.cars.push(car);
     s.player.car = car; s.player.onFoot = false;
     s.player.x = 520; s.player.y = 520;
@@ -389,38 +405,39 @@ async function testLogic() {
   check('traffic stops at a red light', (() => {
     const s = fakeState();
     s.clockSeconds = 8; // horizontal green, vertical red
-    const car = ent.makeCar(520, 470, Math.PI / 2, {
+    const car = carsMod.makeCar(520, 470, Math.PI / 2, {
       kind: 'traffic', roadAxis: 'v', roadIndex: 1, dir: 1, targetSpeed: 110, speed: 100,
     });
     s.cars.push(car);
-    ent.updateTraffic(s, 0.5);
+    carsMod.updateTraffic(s, 0.5);
     return car.speed < 100;
   })());
 
   // 14. A pedestrian flees a speeding car.
   check('pedestrian flees a speeding car', (() => {
     const s = fakeState();
-    const car = ent.makeCar(520, 470, 0, { kind: 'player', speed: 220 });
+    const car = carsMod.makeCar(520, 470, 0, { kind: 'player', speed: 220 });
     s.player.car = car; s.player.onFoot = false;
-    s.peds.push({ x: 560, y: 470, angle: 0, speed: 40, shirt: '#fff', walking: true, flee: 0, down: false, downTimer: 0, axis: 'v', roadPos: 520 });
+    s.peds.push(fakePed(s, 560, 470));
     ent.updatePeds(s, 0.1);
     return s.peds[0].flee > 0;
   })());
 
-  // 15. Busted: police sitting on a player on foot for 3 seconds.
-  check('busted after 3s pinned by police on foot', (() => {
+  // 15. Busted: police sitting on a player on foot builds the bust timer
+  // past the 2-second threshold main.js uses.
+  check('busted timer builds while pinned by police on foot', (() => {
     const s = fakeState();
     s.wanted = 1;
-    s.police.push(ent.makeCar(525, 470, 0, { kind: 'police', speed: 0 }));
-    for (let i = 0; i < 200; i++) ent.updatePolice(s, 1 / 60);
-    return s.busted === true;
+    s.police.push(carsMod.makeCar(525, 470, 0, { kind: 'police', speed: 0 }));
+    for (let i = 0; i < 200; i++) pol.updatePolice(s, 1 / 60);
+    return s.player.bustedTimer >= 2;
   })());
 
   // 16. Police reinforcements match the wanted level.
   check('police count follows wanted level', (() => {
     const s = fakeState();
     s.wanted = 2;
-    ent.updatePolice(s, 0.1);
+    pol.updatePolice(s, 0.1);
     return s.police.length === 3;
   })());
 
@@ -444,18 +461,18 @@ async function testLogic() {
   // 19. Traffic light alternates between axes.
   check('traffic light alternates axes', (() => {
     const w = worldMod.buildWorld(3);
-    const v0 = ent.lightIsGreenFor(w, 'v', 0);
-    const v8 = ent.lightIsGreenFor(w, 'v', 8);
+    const v0 = carsMod.lightIsGreenFor(w, 'v', 0);
+    const v8 = carsMod.lightIsGreenFor(w, 'v', 8);
     return v0 === true && v8 === false;
   })());
 
-  // 20. Enemies shoot back and can be removed when defeated.
+  // 20. Enemies can be removed when defeated.
   check('defeated enemies are removed', (() => {
     const s = fakeState();
     const e = ent.makeEnemy(600, 470, s.rng);
     e.health = 10;
     s.enemies.push(e);
-    ent.firePistol(s, 0);
+    wpn.fireWeapon(s, 0);
     mis.updateEnemies(s, 0.1);
     return s.enemies.length === 0;
   })());
@@ -506,7 +523,7 @@ async function testLogic() {
   // 24. A Respect-gated mission waits, then activates when Mara qualifies.
   check('respect-gated mission waits, then activates', (() => {
     const s = fakeState();
-    mis.startMission(s, 5); // Kawal Sinta requires Respect 45
+    mis.startMission(s, 5); // Escort Sinta requires Respect 45
     if (!s.missions.waiting || s.missions.active) return false;
     if (mis.currentStep(s.missions) !== null) return false;
     s.respect = 50;
@@ -520,14 +537,14 @@ async function testLogic() {
   check('roadblock spawns at 3 stars and despawns cleanly', (() => {
     const s = fakeState();
     s.wanted = 2;
-    if (ent.shouldSpawnRoadblock(s) !== false) return false;
+    if (pol.shouldSpawnRoadblock(s) !== false) return false;
     s.wanted = 3;
-    if (ent.shouldSpawnRoadblock(s) !== true) return false;
-    const rb = ent.spawnRoadblock(s);
+    if (pol.shouldSpawnRoadblock(s) !== true) return false;
+    const rb = pol.spawnRoadblock(s);
     if (!rb || rb.cars.length !== 2 || rb.barriers.length !== 3) return false;
     if (s.barriers.length !== 3) return false;
     s.player.x = 2400; s.player.y = 1800; // far from the roadblock
-    ent.updateRoadblock(s, 0.1);
+    pol.updateRoadblock(s, 0.1);
     return s.roadblock === null && s.barriers.length === 0
       && s.roadblockCooldown > 0;
   })());
@@ -568,13 +585,13 @@ async function testLogic() {
   // 28. A wrecked car burns, then explodes: scorch mark, splash damage.
   check('burning car explodes and hurts bystanders', (() => {
     const s = fakeState();
-    const car = ent.makeCar(600, 470, 0, { kind: 'parked', driver: false });
+    const car = carsMod.makeCar(600, 470, 0, { kind: 'parked', driver: false });
     car.hp = 0;
     car.burning = 2.4;
     s.cars.push(car);
-    const ped = { x: 640, y: 470, angle: 0, speed: 40, shirt: '#fff', walking: true, flee: 0, down: false, downTimer: 0, axis: 'v', roadPos: 520 };
+    const ped = fakePed(s, 640, 470);
     s.peds.push(ped);
-    ent.updateBurning(s, 0.2);
+    eff.updateBurning(s, 0.2);
     return car.exploded === true && s.scorches.length === 1
       && ped.down === true && s.player.health < 100;
   })());
@@ -623,7 +640,7 @@ async function testLogic() {
   // checkpoints, and pays out at the finish.
   check('street race runs its checkpoints and pays', (() => {
     const s = fakeState();
-    const car = ent.makeCar(raceMod.RACE_START.x, raceMod.RACE_START.y, 0, { kind: 'player' });
+    const car = carsMod.makeCar(raceMod.RACE_START.x, raceMod.RACE_START.y, 0, { kind: 'player' });
     s.player.car = car; s.player.onFoot = false;
     s.player.x = raceMod.RACE_START.x; s.player.y = raceMod.RACE_START.y;
     raceMod.updateRace(s, 0.1);
@@ -634,6 +651,29 @@ async function testLogic() {
     }
     return !s.race.active && s.money === 50 + raceMod.RACE_REWARD
       && s.respect === raceMod.RACE_RESPECT && s.race.best > 0;
+  })());
+
+  // 33. The merged city geometry builds deterministically and is substantial.
+  check('city geometry is deterministic and non-trivial', (() => {
+    const w = worldMod.buildWorld(1);
+    const a = cityMod.buildCity(w);
+    const b = cityMod.buildCity(w);
+    const ga = a.ground.counts(); const gb = b.ground.counts();
+    const pa = a.props.counts(); const pb = b.props.counts();
+    return ga.tris === gb.tris && pa.tris === pb.tris
+      && ga.tris > 1000 && pa.tris > 1000;
+  })());
+
+  // 34. Every model factory produces real geometry.
+  check('model factories produce geometry', (() => {
+    const names = ['buildCarMesh', 'buildPoliceMesh', 'buildPersonMesh',
+      'buildHeliMesh', 'buildHeliRotor', 'buildBarrierMesh',
+      'buildPickupMesh', 'buildRingMesh', 'buildDiamondMesh'];
+    return names.every((n) => {
+      const mesh = n === 'buildPickupMesh' ? modelsMod[n]('weapon') : modelsMod[n]();
+      const c = mesh.counts();
+      return c.verts > 0 && c.tris > 0;
+    });
   })());
 }
 

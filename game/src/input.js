@@ -1,18 +1,24 @@
-// input.js — keyboard + mouse state for Solmar City. One object, polled by the
-// game loop; edges (pressed-this-frame keys) are consumed by main.js.
+// input.js — keyboard + mouse state for Solmar City. One object, polled by
+// the game loop; edges (pressed-this-frame keys) are consumed by main.js.
+// The 3D camera adds two inputs on top of the classic set: Q held orbits
+// the camera left (E doubles as orbit-right when it is not busy entering
+// or leaving a car — main.js arbitrates), and dragging the mouse orbits
+// freely. Nothing here needs the pointer lock.
 
 export function createInput() {
   return {
     up: false, down: false, left: false, right: false,
-    action: false, // E — enter / exit car, pick up
+    action: false, // E — enter / exit car (and orbit-right when held idly)
     punch: false,  // F — melee
     shoot: false,  // Space or mouse click — fire the current weapon
     pause: false,  // P or Escape
     confirm: false, // Enter — start screen / menus
-    garage: false, // G — Garasi Bang Udin menu
+    garage: false, // G — Udin's Garage menu
     radio: false,  // R — car radio station
+    camLeft: false, // Q — orbit the camera left
     slot1: false, slot2: false, slot3: false, slot4: false, slot5: false,
     mouseX: 0, mouseY: 0, mouseDown: false,
+    dragDX: 0, dragDY: 0, // mouse-drag deltas since last frame (camera orbit)
     pressed: new Set(), // keys pressed since last consume
   };
 }
@@ -29,6 +35,7 @@ const KEYMAP = {
   Enter: 'confirm',
   KeyG: 'garage',
   KeyR: 'radio',
+  KeyQ: 'camLeft',
   Digit1: 'slot1', Digit2: 'slot2', Digit3: 'slot3', Digit4: 'slot4', Digit5: 'slot5',
 };
 
@@ -43,13 +50,18 @@ export function attachInput(input, element) {
     input[name] = down;
   }
   function onMouseMove(e) {
-    // Aim in canvas pixels, even when CSS scales the canvas.
     const canvas = document.getElementById('game');
     const rect = canvas ? canvas.getBoundingClientRect() : element.getBoundingClientRect();
     const scaleX = canvas ? canvas.width / rect.width : 1;
     const scaleY = canvas ? canvas.height / rect.height : 1;
-    input.mouseX = (e.clientX - rect.left) * scaleX;
-    input.mouseY = (e.clientY - rect.top) * scaleY;
+    const nx = (e.clientX - rect.left) * scaleX;
+    const ny = (e.clientY - rect.top) * scaleY;
+    if (input.mouseDown) {
+      input.dragDX += nx - input.mouseX;
+      input.dragDY += ny - input.mouseY;
+    }
+    input.mouseX = nx;
+    input.mouseY = ny;
   }
   function onMouseDown(e) {
     onMouseMove(e);
@@ -70,6 +82,8 @@ export function attachInput(input, element) {
     input.up = input.down = input.left = input.right = false;
     input.shoot = false;
     input.mouseDown = false;
+    input.camLeft = false;
+    input.action = false;
   });
 }
 
@@ -84,4 +98,6 @@ export function wasPressed(input, name) {
 
 export function endFrame(input) {
   input.pressed.clear();
+  input.dragDX = 0;
+  input.dragDY = 0;
 }

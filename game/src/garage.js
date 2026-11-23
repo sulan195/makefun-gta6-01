@@ -1,4 +1,4 @@
-// garage.js — Garasi Bang Udin in Southside: the city's one tuning shop.
+// garage.js — Udin's Garage in Southside: the city's one tuning shop.
 // Walk (or drive) up to it and press G for the menu: engine and armour
 // upgrades for Mara's current ride, a respray that washes the wanted level
 // away, and ammunition for the SMG and shotgun. Everything bought here is
@@ -7,13 +7,13 @@
 import { dist } from './util.js';
 
 export const UPGRADES = {
-  engine: { name: 'Mesin', max: 3, prices: [250, 500, 900], blurb: '+25 kecepatan puncak / tingkat' },
-  armor: { name: 'Armor', max: 3, prices: [250, 500, 900], blurb: '-15% kerusakan mobil / tingkat' },
+  engine: { name: 'Engine', max: 3, prices: [250, 500, 900], blurb: '+25 top speed / level' },
+  armor: { name: 'Armor', max: 3, prices: [250, 500, 900], blurb: '-15% car damage / level' },
 };
 export const RESPRAY_COST = 150;
 export const AMMO_DEALS = {
-  smg: { amount: 60, cost: 120, label: 'Amunisi SMG +60' },
-  shotgun: { amount: 12, cost: 120, label: 'Amunisi Shotgun +12' },
+  smg: { amount: 60, cost: 120, label: 'SMG Ammo +60' },
+  shotgun: { amount: 12, cost: 120, label: 'Shotgun Ammo +12' },
 };
 export const GARAGE_RADIUS = 110;
 
@@ -68,8 +68,8 @@ export function buyAmmo(state, kind) {
   const deal = AMMO_DEALS[kind];
   if (!deal) return { ok: false, reason: 'unknown' };
   if (state.money < deal.cost) return { ok: false, reason: 'poor' };
-  state.money -= deal.cost;
   if (!state.weapons) return { ok: false, reason: 'unknown' };
+  state.money -= deal.cost;
   state.weapons.ammo[kind] = (state.weapons.ammo[kind] || 0) + deal.amount;
   return { ok: true, amount: deal.amount, price: deal.cost };
 }
@@ -83,14 +83,14 @@ export function garageMenuItems(state) {
     const lvl = g[key];
     items.push({
       action: 'upgrade', key,
-      label: def.name + ' — tingkat ' + lvl + '/' + def.max,
-      detail: lvl >= def.max ? 'MAKS' : '$' + def.prices[lvl] + ' · ' + def.blurb,
+      label: def.name + ' — level ' + lvl + '/' + def.max,
+      detail: lvl >= def.max ? 'MAX' : '$' + def.prices[lvl] + ' · ' + def.blurb,
     });
   }
   items.push({
     action: 'respray', key: 'respray',
-    label: 'Respray — cat baru, plat baru',
-    detail: state.wanted > 0 ? '$' + RESPRAY_COST + ' · hapus wanted' : 'tidak ada wanted',
+    label: 'Respray — fresh paint, fresh plates',
+    detail: state.wanted > 0 ? '$' + RESPRAY_COST + ' · clears wanted' : 'no wanted level',
   });
   items.push({
     action: 'ammo', key: 'smg',
@@ -112,12 +112,12 @@ export function garageAction(state, n) {
   else if (item.action === 'respray') res = respray(state);
   else res = buyAmmo(state, item.key);
   if (res.ok) {
-    if (item.action === 'upgrade') return item.label.split(' — ')[0] + ' naik ke tingkat ' + res.level + '! -$' + res.price;
-    if (item.action === 'respray') return 'Respray selesai — polisi kehilangan jejakmu. -$' + res.price;
-    return item.label + ' terbeli. -$' + res.price;
+    if (item.action === 'upgrade') return item.label.split(' — ')[0] + ' raised to level ' + res.level + '! -$' + res.price;
+    if (item.action === 'respray') return 'Respray done — the police lost your trail. -$' + res.price;
+    return item.label + ' bought. -$' + res.price;
   }
-  if (res.reason === 'poor') return 'Uangmu tidak cukup.';
-  if (res.reason === 'max') return 'Sudah tingkat maksimal.';
-  if (res.reason === 'clean') return 'Mobilmu bersih — tidak ada wanted.';
-  return 'Tidak bisa.';
+  if (res.reason === 'poor') return 'Not enough money.';
+  if (res.reason === 'max') return 'Already at max level.';
+  if (res.reason === 'clean') return 'Your car is clean — no wanted level.';
+  return 'Cannot do that.';
 }
