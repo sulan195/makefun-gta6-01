@@ -14,7 +14,7 @@ const CROSS = rgb('#e8e8e2');
 const GRASS = rgb('#7da05c');
 const SAND = rgb('#e6d09e');
 const LAND = rgb('#b3a37f');
-const WATER = rgb('#256f96');
+const WATER = rgb('#1d5f8a');
 
 function buildingHeight(b) {
   const h = hashSeed(Math.round(b.x) + ',' + Math.round(b.y)) % 100;
@@ -125,6 +125,10 @@ export function buildCity(world) {
     }
     if (r >= 45 && r < 58 && b.district !== 'Harbour') {
       props.cyl(cx - 4, h + 2.6, cz + 3, 2.6, 2.6, 2.6, 8, shade(b.roof, 1.5));
+    }
+    // Rooftop billboards on some towers (emissive panels).
+    if (b.tall && r >= 60 && r < 80) {
+      props.panel(cx, h + 1.4, cz + b.h / 2 + 1, b.w * 0.66, 8, 0, rgb(['#ffd34d', '#ff5f8f', '#39c2d7'][r % 3]), { kind: 3 });
     }
   }
 

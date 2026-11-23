@@ -1,11 +1,10 @@
-// gl.js — the hand-rolled WebGL2 layer for Solmar City 3D: shader programs,
-// matrix maths, and mesh builders. No libraries. Two material families:
-//   * lit meshes (position/normal/color + a "kind" byte that drives
-//     procedural windows, water waves, police-light blink and tinting,
-//     plus a "part" byte that swings the character's limbs in the shader)
-//   * alpha meshes (position + RGBA) for shadows, searchlight and glows.
-// Everything is plain data until upload, so Node tests can build geometry
-// without a GL context.
+// gl.js — the hand-rolled WebGL2 layer for Solmar City 3D: shader
+// programs, matrix maths, mesh builders. No libraries. Two families:
+// lit meshes (position/normal/color + a "kind" byte driving procedural
+// windows, water, police blink and tinting, plus a "part" byte that
+// swings character limbs in the shader) and alpha meshes (shadows,
+// searchlight, glows). Plain data until upload, so Node tests can
+// build geometry without a GL context.
 
 // ------------------------------------------------------------- matrices --
 export function m4ident() {
@@ -378,10 +377,10 @@ void main() {
     }
   }
   if (kind > 1.5 && kind < 2.5) {
-    n = normalize(vec3(sin(vWorld.x * 0.11 + sin(vWorld.z * 0.13) * 2.1) * 0.22, 1.0,
-      cos(vWorld.z * 0.09 + sin(vWorld.x * 0.07) * 2.1) * 0.22));
+    n = normalize(vec3(sin(vWorld.x * 0.11 + sin(vWorld.z * 0.13) * 2.1) * 0.27, 1.0,
+      cos(vWorld.z * 0.09 + sin(vWorld.x * 0.07) * 2.1) * 0.27));
     vec3 hv = normalize(normalize(uCamPos - vWorld) + uSunDir);
-    col += uSunCol * pow(max(dot(n, hv), 0.0), 70.0) * 1.15;
+    col += uSunCol * pow(max(dot(n, hv), 0.0), 70.0) * 1.5;
   }
   float dif = max(dot(n, uSunDir), 0.0);
   vec3 lit = col * (uAmb + uSunCol * dif);
