@@ -675,6 +675,67 @@ async function testLogic() {
       return c.verts > 0 && c.tris > 0;
     });
   })());
+
+  // 35-37. loadSave is the game's only defence against a corrupted or
+  // tampered save, so it gets an in-memory localStorage to run against.
+  const store = {};
+  globalThis.window = {
+    localStorage: {
+      getItem: (k) => (k in store ? store[k] : null),
+      setItem: (k, v) => { store[k] = String(v); },
+      removeItem: (k) => { delete store[k]; },
+    },
+  };
+  const putSave = (obj) => { store[saveMod.SAVE_KEY] = JSON.stringify(obj); };
+
+  // 35. Saves whose core progress is corrupt are rejected outright.
+  check('loadSave rejects corrupt core fields', (() => {
+    const base = saveMod.serializeSave(fakeState());
+    for (const bad of [{ missionIndex: 999 }, { missionIndex: -1 },
+      { missionIndex: 2.5 }, { money: -50 }, { money: 'lots' }]) {
+      putSave({ ...base, ...bad });
+      if (saveMod.loadSave() !== null) return false;
+    }
+    return true;
+  })());
+
+  // 36. Damaged optional fields are sanitised, not trusted.
+  check('loadSave sanitises damaged fields', (() => {
+    const base = saveMod.serializeSave(fakeState());
+    putSave({
+      ...base, respect: -9, health: 900, clockMinutes: 'tea', playerX: null,
+      missionsDone: 'all of them', garage: { engine: 9, armor: 'x' },
+      weapons: { owned: ['rocket'], current: 'rocket', ammo: { smg: -1, shotgun: 0 } },
+      raceBest: -3,
+    });
+    const s = saveMod.loadSave();
+    return s !== null && s.respect === 0 && s.health === 100
+      && s.clockMinutes === 1000 && s.playerX === 0
+      && Array.isArray(s.missionsDone) && s.missionsDone.length === 8
+      && s.missionsDone.every((v) => typeof v === 'boolean')
+      && s.garage.engine === 0 && s.garage.armor === 0
+      && s.weapons.current === 'fist' && s.weapons.owned.length === 1
+      && s.raceBest === 0;
+  })());
+
+  // 37. A save written by serializeSave loads back intact.
+  check('valid save round-trips through loadSave', (() => {
+    const s = fakeState();
+    s.money = 777; s.missions.index = 3; s.respect = 42;
+    s.missionsDone = ['taxi', 'steal', 'package'];
+    s.garage.engine = 2; s.garage.armor = 1;
+    s.weapons.owned.push('smg'); s.weapons.ammo.smg = 25;
+    s.player.x = 300; s.player.y = 400; s.player.health = 64;
+    putSave(saveMod.serializeSave(s));
+    const loaded = saveMod.loadSave();
+    return loaded !== null && loaded.money === 777 && loaded.missionIndex === 3
+      && loaded.respect === 42 && loaded.health === 64
+      && loaded.playerX === 300 && loaded.playerY === 400
+      && loaded.garage.engine === 2 && loaded.garage.armor === 1
+      && loaded.weapons.ammo.smg === 25 && loaded.weapons.owned.includes('smg')
+      && loaded.missionsDone.join(',') === 'taxi,steal,package';
+  })());
+  delete globalThis.window;
 }
 
 // ---------------------------------------------------------------------- main --

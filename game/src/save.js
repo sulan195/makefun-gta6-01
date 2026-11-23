@@ -40,13 +40,33 @@ export function saveGame(state) {
   }
 }
 
+const WEAPON_IDS = ['fist', 'pistol', 'smg', 'shotgun'];
+const numOr = (v, d) => Number.isFinite(v) ? v : d;
+const intIn = (v, hi) => Number.isInteger(v) && v >= 0 && v <= hi;
+function cleanWeapons(w) {
+  if (w == null) return null;
+  const a = w.ammo || {};
+  const ok = Array.isArray(w.owned) && WEAPON_IDS.includes(w.current)
+    && w.owned.every((id) => WEAPON_IDS.includes(id))
+    && ['smg', 'shotgun'].every((k) => numOr(a[k], -1) >= 0);
+  return ok ? w : { owned: ['fist'], current: 'fist', ammo: { smg: 0, shotgun: 0 } };
+}
 export function loadSave() {
   try {
     const raw = window.localStorage.getItem(SAVE_KEY);
     if (!raw) return null;
     const data = JSON.parse(raw);
     if (!data || data.version !== 1) return null;
-    if (typeof data.money !== 'number' || typeof data.missionIndex !== 'number') return null;
+    // Core values reject; rest sanitised.
+    if (numOr(data.money, -1) < 0 || !intIn(data.missionIndex, 8)) return null;
+    for (const k of ['respect', 'raceBest']) data[k] = Math.max(0, numOr(data[k], 0));
+    for (const [k, d] of [['playerX', 0], ['playerY', 0], ['clockMinutes', 1000]]) data[k] = numOr(data[k], d);
+    data.health = Math.min(100, Math.max(1, numOr(data.health, 100)));
+    if (!Array.isArray(data.missionsDone) || data.missionsDone.some((v) => !['string', 'boolean'].includes(typeof v)))
+      data.missionsDone = [...Array(8)].map((_, i) => i < data.missionIndex);
+    const g = data.garage || {};
+    data.garage = intIn(g.engine, 3) && intIn(g.armor, 3) ? g : { engine: 0, armor: 0 };
+    data.weapons = cleanWeapons(data.weapons);
     return data;
   } catch (e) {
     return null;
