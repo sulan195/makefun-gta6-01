@@ -1,7 +1,6 @@
-// world.js — Solmar City: an original sun-soaked coastal city, generated from a
-// seed. Roads on a grid, blocks holding buildings, one park district, a harbour
-// along the south edge, sidewalks, crosswalks and traffic lights at crossings.
-// Everything is plain data; render.js draws it, entities.js drives on it.
+// world.js — Solmar City: an original sun-soaked coastal city, generated
+// from a seed. Roads on a grid, blocks of buildings, one park district, a
+// harbour along the south edge. Plain data; render.js draws it.
 
 import { makeRng, pick, range } from './util.js';
 
@@ -116,6 +115,9 @@ export function buildWorld(seed) {
       });
     }
   }
+
+  // A parked row along the seafront road, facing the beach.
+  for (let x = 300; x < WORLD_W - 200; x += 230) parkedSpots.push({ x, y: 1680 + ROAD_W / 2 - 12, angle: 0 });
 
   // Traffic lights: one per crossing, cycling on a shared clock.
   const lights = [];

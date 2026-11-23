@@ -1,9 +1,7 @@
 // shots.js — deterministic staged scenes for the screenshots.
 // ?shot=start|drive|chase|mission with ?seed= sets the game up so the
-// first frames already show the scene, with no input needed. The four
-// scenes are the game's shop window: the golden-hour shore from the air,
-// a coastal drive, a five-star chase with the roadblock and the CONDOR
-// helicopter, and a mid-mission standoff in Southside.
+// first frames already show the scene, with no input needed: the shore
+// from the air, a coastal drive, a five-star chase, a mission standoff.
 
 import { makeCar } from './cars.js';
 import { createHelicopter } from './helicopter.js';
@@ -47,6 +45,12 @@ export function applyShot(state, shot) {
     state.missions.step = 1;
     state.missions.passenger = true;
     state.autoDrive = true;
+    // Staged coast life: traffic ahead and strollers on the boardwalk.
+    const tc = (x, y, a, dir) => makeCar(x, y, a, { kind: 'traffic', driver: true, rng: state.rng, roadAxis: 'h', roadIndex: 5, dir, speed: 120 });
+    state.cars.push(tc(2060, 1698, 0, 1), tc(2380, 1662, Math.PI, -1));
+    [[2280, 1742], [2410, 1736], [2190, 1744]].forEach(([x, y], i) => {
+      state.peds.push({ x, y, angle: i % 2 ? Math.PI : 0, speed: 34, shirt: ['#e07840', '#4d7dc9', '#f0e8d8'][i], flee: 0, down: false, downTimer: 0, axis: 'h', roadPos: y, walkPhase: i * 2 });
+    });
   } else if (shot === 'chase') {
     state.clockMinutes = 18 * 60;
     state.money = 2450;

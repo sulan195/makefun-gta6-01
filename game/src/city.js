@@ -1,9 +1,7 @@
 // city.js — Solmar City's static geometry, merged into two lit builders:
-// `ground` (base land, roads, markings, beach, the animated sea) and
-// `props` (buildings with procedural-window walls, palms, trees, signs,
-// harbour crane). Props are kept separate so render.js can project them
-// onto the ground as real-time sun shadows. Pure data — no DOM, no GL —
-// so Node tests can measure the geometry.
+// `ground` (land, roads, beach, the animated sea) and `props` (buildings,
+// palms, lamps, harbour, seafront) — separate so render.js can project
+// props onto the ground as sun shadows. Pure data — no DOM, no GL.
 
 import { Builder, rgb, shade } from './gl.js';
 import { hashSeed, makeRng } from './util.js';
@@ -16,7 +14,7 @@ const CROSS = rgb('#e8e8e2');
 const GRASS = rgb('#7da05c');
 const SAND = rgb('#e6d09e');
 const LAND = rgb('#b3a37f');
-const WATER = rgb('#2e7f9e');
+const WATER = rgb('#256f96');
 
 function buildingHeight(b) {
   const h = hashSeed(Math.round(b.x) + ',' + Math.round(b.y)) % 100;
@@ -100,6 +98,20 @@ export function buildCity(world) {
     }
   }
 
+  // Streetlights along every road: pole + warm glowing head (kind 3).
+  const lampPole = rgb('#2a2e33');
+  const lampHead = rgb('#ffd9a0');
+  const lampAt = (x, z) => {
+    props.cyl(x, 8, z, 0.35, 0.5, 16, 5, lampPole);
+    props.box(x, 16.6, z, 3.4, 1.6, 3.4, lampHead, { kind: 3 });
+  };
+  for (const x of V_ROADS) {
+    for (let z = 120, s = 0; z < WORLD_H - 60; z += 168, s++) lampAt(x + (s % 2 ? 44 : -44), z);
+  }
+  for (const y of H_ROADS) {
+    for (let x = 130, s = 0; x < WORLD_W - 60; x += 168, s++) lampAt(x, y + (s % 2 ? -44 : 44));
+  }
+
   // Buildings: windowed walls (kind 1), a roof slab, rooftop clutter.
   for (const b of world.buildings) {
     const h = buildingHeight(b);
@@ -129,20 +141,61 @@ export function buildCity(world) {
   props.box(788, 17.5, 1428, 3, 9, 26, rgb('#1248c0'), { kind: 3 });
   props.box(788, 17.5, 1428, 3.4, 2.2, 26, rgb('#ffd34d'), { kind: 3 });
 
-  // A harbour crane over the yards.
+  // Two harbour cranes over the yards.
   const crane = rgb('#c85a20');
-  props.box(2260, 26, 1600, 5, 52, 5, crane);
-  props.box(2330, 26, 1600, 5, 52, 5, crane);
-  props.box(2295, 54, 1600, 150, 5, 6, crane);
-  props.box(2240, 44, 1600, 2, 16, 2, rgb('#333333'));
-  props.box(2240, 34, 1600, 12, 6, 10, rgb('#4d7d8a'));
+  for (const [cx, cz] of [[2295, 1600], [1887, 1596]]) {
+    props.box(cx - 35, 26, cz, 5, 52, 5, crane);
+    props.box(cx + 35, 26, cz, 5, 52, 5, crane);
+    props.box(cx, 54, cz, 150, 5, 6, crane);
+    props.box(cx - 55, 44, cz, 2, 16, 2, rgb('#333333'));
+    props.box(cx - 55, 34, cz, 12, 6, 10, rgb('#4d7d8a'));
+  }
+
+  // Container yards in the harbour blocks: stacked shipping boxes,
+  // placed by position hash so the layout is stable.
+  const CONT = ['#b3402e', '#2e6fb3', '#3f8a4d', '#c9862b', '#7a4d8a', '#4d7d8a'];
+  for (let c = 4; c < V_ROADS.length - 1; c++) {
+    const x0 = V_ROADS[c] + 62;
+    for (const z of [1556, 1608]) {
+      for (let x = x0 + 20; x < V_ROADS[c + 1] - 90; x += 46) {
+        const h = hashSeed('cont' + x + ',' + z) % 100;
+        if (h < 18) continue;
+        for (let s = 0; s < 3 && (s === 0 || h > 24 + s * 31); s++) {
+          props.box(x, 6.5 + s * 13, z, 38, 13, 15, rgb(CONT[(h >> (s * 3)) % 6]));
+        }
+      }
+    }
+  }
+
+  // Seafront: boardwalk + palms, beach umbrellas, a pier, moored boats.
+  ground.box(WORLD_W / 2, 0.06, 1718, WORLD_W - 80, 0.1, 44, rgb('#c9b18a'));
+  for (let x = 90; x < WORLD_W - 60; x += 118) palm(props, x, 1704, 0.75);
+  const UMB = ['#e2543e', '#f2f0e6', '#3e7dc9', '#f0b429'];
+  for (let i = 0; i < 22; i++) {
+    const x = 150 + i * 108 + (hashSeed('umb' + i) % 60);
+    const z = 1796 + (hashSeed('umbz' + i) % 56);
+    props.cyl(x, 5, z, 0.3, 0.4, 10, 5, rgb('#e8e2d2'));
+    props.box(x, 10.6, z, 17, 1.1, 17, rgb(UMB[i % 4]));
+  }
+  props.box(2150, 1.2, 1975, 26, 2.4, 250, rgb('#8a6f4d'));
+  for (let z = 1870; z <= 2080; z += 42) {
+    for (const px of [2139, 2161]) props.cyl(px, -1, z, 1.1, 1.1, 6, 5, rgb('#6b543a'));
+  }
+  const HULL = ['#f0ead8', '#c23b2e', '#2e6fc2', '#e8b13c'];
+  for (let i = 0; i < 11; i++) {
+    const x = 200 + i * 215 + (hashSeed('boat' + i) % 90);
+    const z = 2030 + (hashSeed('boatz' + i) % 260);
+    props.box(x, 1.5, z, 30, 5, 10, rgb(HULL[i % 4]));
+    props.box(x - 2, 5.5, z, 12, 3.5, 7, rgb('#f6f2e6'));
+    props.cyl(x + 4, 13, z, 0.3, 0.4, 16, 4, rgb('#d8d2c2'));
+  }
 
   return { ground, props };
 }
 
 // Sun for a game clock (minutes): direction TO the sun, its colour, the
-// ambient floor and the fog colour. Golden in the morning and evening,
-// white at noon, deep blue at night. Deterministic in the clock alone.
+// ambient floor and fog colour. Golden at the ends of the day, white at
+// noon, deep blue at night. Deterministic in the clock alone.
 export function sunForClock(minutes) {
   const t = ((minutes % 1440) + 1440) % 1440;
   const day = (t - 360) / (1140 - 360); // 06:00 -> 0, 19:00 -> 1

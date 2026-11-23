@@ -377,6 +377,12 @@ void main() {
       if (h > 0.6) col += vec3(1.0, 0.72, 0.38) * 0.9;
     }
   }
+  if (kind > 1.5 && kind < 2.5) {
+    n = normalize(vec3(sin(vWorld.x * 0.11 + sin(vWorld.z * 0.13) * 2.1) * 0.22, 1.0,
+      cos(vWorld.z * 0.09 + sin(vWorld.x * 0.07) * 2.1) * 0.22));
+    vec3 hv = normalize(normalize(uCamPos - vWorld) + uSunDir);
+    col += uSunCol * pow(max(dot(n, hv), 0.0), 70.0) * 1.15;
+  }
   float dif = max(dot(n, uSunDir), 0.0);
   vec3 lit = col * (uAmb + uSunCol * dif);
   float d = distance(uCamPos, vWorld);
