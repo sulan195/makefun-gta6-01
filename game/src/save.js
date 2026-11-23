@@ -14,6 +14,18 @@ export function serializeSave(state) {
     playerY: Math.round(state.player.y),
     health: Math.round(state.player.health),
     clockMinutes: Math.round(state.clockMinutes),
+    respect: Math.round(state.respect || 0),
+    garage: state.garage
+      ? { engine: state.garage.engine || 0, armor: state.garage.armor || 0 }
+      : { engine: 0, armor: 0 },
+    weapons: state.weapons
+      ? {
+        owned: state.weapons.owned.slice(),
+        current: state.weapons.current,
+        ammo: { smg: state.weapons.ammo.smg || 0, shotgun: state.weapons.ammo.shotgun || 0 },
+      }
+      : null,
+    raceBest: state.race ? Math.round((state.race.best || 0) * 10) / 10 : 0,
     savedAt: new Date().toISOString(),
   };
 }

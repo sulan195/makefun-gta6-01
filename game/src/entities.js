@@ -5,8 +5,10 @@
 import {
   clamp, dist, angleDelta, pick, range, circleHitsBox, pushCircleOutOfBox,
 } from './util.js';
-import { V_ROADS, H_ROADS, WORLD_W, WORLD_H, ROAD_W, isOnRoad } from './world.js';
+import { V_ROADS, H_ROADS, WORLD_W, WORLD_H, ROAD_W, isOnRoad, nearestRoadPoint } from './world.js';
 import { playGunshot, playThud } from './audio.js';
+import { carMaxSpeed, carAccel, carDamageFactor } from './garage.js';
+import { heliDecayFactor } from './helicopter.js';
 
 export const PLAYER_R = 14;
 export const CAR_W = 46;
@@ -34,9 +36,10 @@ export function makeCar(x, y, angle, opts = {}) {
   return {
     x, y, angle, speed: opts.speed || 0,
     color: opts.color || pick(opts.rng || Math.random, CAR_COLORS),
-    kind: opts.kind || 'traffic', // traffic | parked | player | police
+    kind: opts.kind || 'traffic', // traffic | parked | player | police | wreck
     driver: opts.driver !== undefined ? opts.driver : true,
     hp: 100, braking: false, smoke: 0,
+    burning: 0, exploded: false, warnedLow: false,
     // Traffic only:
     roadAxis: opts.roadAxis || null, roadIndex: opts.roadIndex ?? null,
     dir: opts.dir || 1, targetSpeed: opts.targetSpeed || 110,
@@ -239,6 +242,7 @@ function updatePlayerOnFoot(state, input, dt) {
     p.angle = Math.atan2(my, mx);
   }
   collideWithBuildings(p, PLAYER_R, state.world);
+  collideBarriers(state, p, PLAYER_R);
   clampToWorld(p);
 }
 
@@ -249,12 +253,14 @@ function updatePlayerDriving(state, input, dt) {
     if (car) car.speed = 0;
     return;
   }
+  const maxSpeed = carMaxSpeed(state); // Garasi Bang Udin engine upgrades count.
+  const accel = carAccel(state);
   const forward = input.up ? 1 : input.down ? -0.6 : 0;
-  if (forward > 0) car.speed += CAR_ACCEL * dt;
+  if (forward > 0) car.speed += accel * dt;
   else if (forward < 0) car.speed -= CAR_BRAKE * 0.6 * dt;
   else car.speed -= Math.sign(car.speed) * 90 * dt;
   if (Math.abs(car.speed) < 4 && forward === 0) car.speed = 0;
-  car.speed = clamp(car.speed, -120, CAR_MAX_SPEED);
+  car.speed = clamp(car.speed, -120, maxSpeed);
   const steer = (input.left ? -1 : 0) + (input.right ? 1 : 0);
   if (Math.abs(car.speed) > 5) {
     car.angle += steer * 2.1 * dt * Math.sign(car.speed)
@@ -265,13 +271,14 @@ function updatePlayerDriving(state, input, dt) {
   car.braking = input.down && car.speed > 40;
   if (collideWithBuildings(car, 22, state.world)) {
     if (Math.abs(car.speed) > 160) {
-      car.hp -= 12;
+      car.hp -= 12 * carDamageFactor(state);
       damagePlayer(state, 4);
       playThud(state.audio);
       spawnSparks(state, car.x, car.y, 8);
     }
     car.speed *= 0.4;
   }
+  if (collideBarriers(state, car, 22)) car.speed *= 0.35;
   clampToWorld(car);
   p.x = car.x;
   p.y = car.y;
@@ -280,9 +287,15 @@ function updatePlayerDriving(state, input, dt) {
   if (Math.abs(car.speed) > 200 && Math.random() < 0.3) {
     spawnDust(state, car.x - Math.cos(car.angle) * 22, car.y - Math.sin(car.angle) * 22);
   }
+  if (car.hp <= 30 && car.hp > 0 && !car.warnedLow) {
+    car.warnedLow = true;
+    state.message = 'Mobilmu berasap parah! Keluar sebelum terbakar!';
+    state.messageUntil = state.clockSeconds + 3;
+  }
   if (car.hp <= 0 && car.smoke === 0) {
     car.smoke = 1;
     state.message = 'Mobilmu rusak! Tekan E untuk keluar.';
+    state.messageUntil = state.clockSeconds + 3;
   }
 }
 
@@ -551,7 +564,7 @@ export function updatePolice(state, dt) {
     // Ram the player.
     if (d < 46) {
       if (p.car) {
-        p.car.hp -= 15 * dt;
+        p.car.hp -= 15 * dt * carDamageFactor(state);
         p.car.speed *= 0.985;
         damagePlayer(state, 5 * dt);
         if (Math.random() < 0.2) playThud(state.audio);
@@ -569,9 +582,10 @@ export function updatePolice(state, dt) {
   if (state.police.length === 0 || nearest > 90) p.bustedTimer = Math.max(0, p.bustedTimer - dt);
 
   // Wanted decay: hidden from every police car for a while, stars fall off.
+  // Under the CONDOR searchlight the hiding clock runs far more slowly.
   if (state.wanted > 0) {
     if (nearest > 700) {
-      state.wantedTimer += dt;
+      state.wantedTimer += dt * heliDecayFactor(state);
       if (state.wantedTimer >= 6) {
         state.wantedTimer = 0;
         state.wanted = Math.max(0, state.wanted - 1);
@@ -583,21 +597,191 @@ export function updatePolice(state, dt) {
   }
 }
 
-// Roadblock at high wanted: two police cars parked across the road ahead.
-export function maybeRoadblock(state) {
-  if (state.wanted < 4 || state.roadblockActive) return;
-  state.roadblockActive = true;
+// --- roadblocks -------------------------------------------------------------
+// At three stars the police stop chasing only: they park two cars across
+// the road ahead of Mara and drop striped barriers between them. The unit
+// is stored apart from the patrol list so the chase maths never moves it;
+// it despawns cleanly when she gets far away, the heat cools, or it ages.
+
+export function shouldSpawnRoadblock(state) {
+  return state.wanted >= 3 && !state.roadblock
+    && (state.roadblockCooldown || 0) <= 0;
+}
+
+// Where the roadblock goes: a point ahead of the player, snapped onto the
+// nearest road centre so the cars sit across asphalt, never in a block.
+export function roadblockSpot(state) {
   const p = state.player;
-  const ahead = p.car ? p.angle : p.angle;
-  const bx = p.x + Math.cos(ahead) * 320;
-  const by = p.y + Math.sin(ahead) * 320;
-  for (let i = 0; i < 2; i++) {
-    state.police.push(makeCar(
-      bx + (i === 0 ? -30 : 30), by + (i === 0 ? 20 : -20),
-      ahead + Math.PI / 2, { kind: 'police', speed: 0 },
-    ));
+  const bx = p.x + Math.cos(p.angle) * 340;
+  const by = p.y + Math.sin(p.angle) * 340;
+  const snap = nearestRoadPoint(bx, by);
+  return { x: snap.x, y: snap.y, axis: snap.axis };
+}
+
+export function spawnRoadblock(state) {
+  const spot = roadblockSpot(state);
+  const cars = [];
+  const barriers = [];
+  // Across a vertical road the cars line up along x; across a horizontal
+  // road, along y. Barriers fill the gaps at -34 / 0 / +34.
+  const along = spot.axis === 'v' ? 'x' : 'y';
+  const carAngle = spot.axis === 'v' ? 0 : Math.PI / 2;
+  for (const off of [-25, 25]) {
+    const pos = { x: spot.x, y: spot.y };
+    pos[along] += off;
+    cars.push(makeCar(pos.x, pos.y, carAngle, { kind: 'police', speed: 0 }));
   }
-  state.message = 'ROADBLOCK di depan! Putar balik!';
+  for (const off of [-36, 0, 36]) {
+    const pos = { x: spot.x, y: spot.y };
+    pos[along] += off;
+    barriers.push({ x: pos.x, y: pos.y, angle: carAngle });
+  }
+  state.roadblock = { x: spot.x, y: spot.y, axis: spot.axis, cars, barriers, age: 0 };
+  state.barriers = barriers;
+  state.message = 'ROADBLOCK di depan! Putar balik atau terobos!';
+  state.messageUntil = state.clockSeconds + 3;
+  return state.roadblock;
+}
+
+export function clearRoadblock(state) {
+  state.roadblock = null;
+  state.barriers = [];
+}
+
+export function updateRoadblock(state, dt) {
+  state.roadblockCooldown = Math.max(0, (state.roadblockCooldown || 0) - dt);
+  const rb = state.roadblock;
+  if (!rb) {
+    if (shouldSpawnRoadblock(state)) spawnRoadblock(state);
+    return;
+  }
+  rb.age += dt;
+  for (const car of rb.cars) car.sirenPhase += dt;
+  const p = state.player;
+  const wrecked = rb.cars.every((c) => c.exploded);
+  if (wrecked || state.wanted < 2 || rb.age > 50
+    || dist(p.x, p.y, rb.x, rb.y) > 750) {
+    // Wrecks stay behind as ordinary burnt-out cars.
+    for (const car of rb.cars) {
+      if (car.exploded) {
+        car.kind = 'wreck';
+        state.cars.push(car);
+      }
+    }
+    clearRoadblock(state);
+    state.roadblockCooldown = 18;
+  }
+}
+
+// Barriers are solid: circles (Mara, her car) are pushed out of them.
+export function collideBarriers(state, e, r) {
+  let hit = false;
+  for (const b of state.barriers || []) {
+    const d = dist(e.x, e.y, b.x, b.y);
+    const min = r + 15;
+    if (d < min && d > 0.01) {
+      e.x = b.x + ((e.x - b.x) / d) * min;
+      e.y = b.y + ((e.y - b.y) / d) * min;
+      hit = true;
+    }
+  }
+  return hit;
+}
+
+// --- burning cars -----------------------------------------------------------
+// A car at 0 hp catches fire: flames and smoke for a few seconds, then it
+// explodes — hurting everyone close, chaining into nearby cars and leaving
+// a scorch mark on the asphalt. Mara's own car warns her long before that.
+
+export function explodeCar(state, car) {
+  if (car.exploded) return;
+  car.exploded = true;
+  car.burning = 0;
+  car.speed = 0;
+  car.color = '#1b1b1b';
+  if (!state.scorches) state.scorches = [];
+  state.scorches.push({ x: car.x, y: car.y });
+  if (state.scorches.length > 40) state.scorches.shift();
+  for (let i = 0; i < 26; i++) {
+    state.particles.push({
+      x: car.x, y: car.y,
+      vx: (Math.random() - 0.5) * 340, vy: (Math.random() - 0.5) * 340,
+      life: 0.7, maxLife: 0.7,
+      color: i % 3 === 0 ? '#8a8a8a' : (i % 2 === 0 ? '#ff7a26' : '#ffd34d'),
+      size: 5,
+    });
+  }
+  playThud(state.audio);
+  const R = 100;
+  const p = state.player;
+  if (p.car === car) {
+    // Ejected from her own exploding car, hurt but alive.
+    damagePlayer(state, 30);
+    p.car = null;
+    p.onFoot = true;
+    p.x = car.x + 46;
+    p.y = car.y + 46;
+    clampToWorld(p);
+    car.kind = 'wreck';
+    state.message = 'Mobilmu MELEDAK! Kamu terlempar keluar.';
+    state.messageUntil = state.clockSeconds + 3.5;
+  } else if (dist(p.x, p.y, car.x, car.y) < R) {
+    damagePlayer(state, 30);
+  }
+  const others = [...state.cars, ...state.police,
+    ...(state.roadblock ? state.roadblock.cars : [])];
+  for (const other of others) {
+    if (other === car || other.exploded) continue;
+    if (dist(other.x, other.y, car.x, car.y) < R) other.hp -= 70;
+  }
+  for (const ped of state.peds) {
+    if (!ped.down && dist(ped.x, ped.y, car.x, car.y) < 85) {
+      ped.down = true;
+      ped.downTimer = 8;
+    }
+  }
+  for (const e of state.enemies) {
+    if (e.alive && dist(e.x, e.y, car.x, car.y) < 85) {
+      e.health -= 60;
+      if (e.health <= 0) e.alive = false;
+    }
+  }
+}
+
+export function updateBurning(state, dt) {
+  const all = [...state.cars, ...state.police,
+    ...(state.roadblock ? state.roadblock.cars : [])];
+  for (const car of all) {
+    if (car.exploded) continue;
+    if (car.hp <= 0) {
+      car.burning = (car.burning || 0) + dt;
+      if (Math.random() < 0.55) {
+        state.particles.push({
+          x: car.x + (Math.random() - 0.5) * 26,
+          y: car.y + (Math.random() - 0.5) * 14,
+          vx: (Math.random() - 0.5) * 24, vy: -46 - Math.random() * 30,
+          life: 0.55, maxLife: 0.55,
+          color: Math.random() < 0.5 ? '#ff7a26' : '#5a5a5a',
+          size: 6,
+        });
+      }
+      if (car.burning >= 2.5) explodeCar(state, car);
+    } else if (car.hp < 40 && Math.random() < 0.22) {
+      state.particles.push({
+        x: car.x, y: car.y - 8,
+        vx: (Math.random() - 0.5) * 16, vy: -34,
+        life: 0.8, maxLife: 0.8, color: '#6a6a6a', size: 5,
+      });
+    }
+  }
+  // Exploded patrol cars leave the force; the wreck stays on the street.
+  for (let i = state.police.length - 1; i >= 0; i--) {
+    if (state.police[i].exploded) {
+      const wreck = state.police.splice(i, 1)[0];
+      wreck.kind = 'wreck';
+      state.cars.push(wreck);
+    }
+  }
 }
 
 // --- particles ------------------------------------------------------------

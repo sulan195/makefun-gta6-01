@@ -135,6 +135,9 @@ export function buildWorld(seed) {
       harbourYard: { x: 2120, y: 1680, name: 'Harbour yard' },
       downtown: { x: 1480, y: 840, name: 'Downtown plaza' },
       hospital: { x: 840, y: 200, name: 'St. Anselm Hospital' },
+      garage: { x: 840, y: 1480, name: 'Garasi Bang Udin' },
+      bank: { x: 1800, y: 520, name: 'Bank Solmar' },
+      southside: { x: 1160, y: 1480, name: 'Southside' },
     },
   };
 }

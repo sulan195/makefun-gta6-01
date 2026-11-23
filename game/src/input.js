@@ -6,9 +6,12 @@ export function createInput() {
     up: false, down: false, left: false, right: false,
     action: false, // E — enter / exit car, pick up
     punch: false,  // F — melee
-    shoot: false,  // Space or mouse click — fire pistol
+    shoot: false,  // Space or mouse click — fire the current weapon
     pause: false,  // P or Escape
     confirm: false, // Enter — start screen / menus
+    garage: false, // G — Garasi Bang Udin menu
+    radio: false,  // R — car radio station
+    slot1: false, slot2: false, slot3: false, slot4: false, slot5: false,
     mouseX: 0, mouseY: 0, mouseDown: false,
     pressed: new Set(), // keys pressed since last consume
   };
@@ -24,6 +27,9 @@ const KEYMAP = {
   Space: 'shoot',
   KeyP: 'pause', Escape: 'pause',
   Enter: 'confirm',
+  KeyG: 'garage',
+  KeyR: 'radio',
+  Digit1: 'slot1', Digit2: 'slot2', Digit3: 'slot3', Digit4: 'slot4', Digit5: 'slot5',
 };
 
 export function attachInput(input, element) {

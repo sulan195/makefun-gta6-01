@@ -1,10 +1,15 @@
 // shots.js — deterministic staged scenes for screenshots. ?shot=start|drive|
 // chase|mission with ?seed= sets the game up so the first frame already shows
 // the scene, with no input needed. Every placement uses the seeded RNG, so a
-// screenshot can be reproduced exactly.
+// screenshot can be reproduced exactly. The four scenes are the game's shop
+// window: golden-hour shore, a coastal drive, a five-star chase with the
+// roadblock and the CONDOR helicopter, and a mid-mission firefight setup.
 
-import { makeCar, spawnTraffic, spawnPeds, raiseWanted } from './entities.js';
+import {
+  makeCar, spawnTraffic, spawnPeds, raiseWanted, spawnRoadblock,
+} from './entities.js';
 import { startMission } from './missions.js';
+import { createHelicopter } from './helicopter.js';
 
 function clearTraffic(state) {
   state.cars = state.cars.filter((c) => c.kind === 'parked');
@@ -24,6 +29,12 @@ function putPlayerInCar(state, x, y, angle, speed) {
   p.y = y;
   p.angle = angle;
   p.speed = speed;
+}
+
+function giveSmg(state, ammo) {
+  if (!state.weapons.owned.includes('smg')) state.weapons.owned.push('smg');
+  state.weapons.current = 'smg';
+  state.weapons.ammo.smg = ammo;
 }
 
 function ringTraffic(state, cx, cy, count) {
@@ -61,55 +72,66 @@ function ringTraffic(state, cx, cy, count) {
 export function applyShot(state, name) {
   const p = state.player;
   if (name === 'start') {
-    // Title screen over downtown at golden hour.
+    // Title screen over the south shore at golden hour: palms, sand, sea.
     state.mode = 'title';
-    state.clockMinutes = 17 * 60 + 20;
-    p.x = 1480; p.y = 840; p.onFoot = true;
+    state.clockMinutes = 17 * 60 + 15;
+    p.x = 1960; p.y = 1440; p.onFoot = true;
     clearTraffic(state);
-    ringTraffic(state, 1480, 840, 7);
-    state.view.camX = 1480 - 640;
-    state.view.camY = 840 - 400;
+    ringTraffic(state, 1960, 1440, 7);
+    state.view.camX = 1960 - 640;
+    state.view.camY = 1440 - 400;
     return;
   }
 
   if (name === 'drive') {
-    // Mara driving through busy downtown traffic, mission 1 live, minimap on.
+    // Mara driving the coast road east at golden hour, passenger aboard
+    // (mission 1, second step), beach and palms along the south edge.
     state.mode = 'play';
-    state.clockMinutes = 10 * 60;
+    state.clockMinutes = 17 * 60 + 5;
     clearTraffic(state);
-    putPlayerInCar(state, 1480, 1000, Math.PI / 2, 190);
+    putPlayerInCar(state, 1700, 1680, 0, 200);
     state.autoDrive = true;
-    ringTraffic(state, 1480, 1000, 9);
+    ringTraffic(state, 1700, 1680, 8);
     startMission(state, 0);
     state.missions.step = 1; // passenger aboard, heading for the Marina
     state.missions.passenger = true;
-    state.message = 'Penumpang: "Ke Marina West, cepat!"';
+    state.message = 'Penumpang: "Lihat pantainya… ke Marina West, cepat!"';
     state.messageUntil = state.clockSeconds + 30;
-    state.view.camX = 1480 - 640;
-    state.view.camY = 1000 - 400;
+    state.view.camX = 1700 - 640;
+    state.view.camY = 1120; // lowest camera: keeps the shore in frame
     return;
   }
 
   if (name === 'chase') {
-    // Three-star chase: Mara just stole the sedan (mission 2, escape step),
-    // police on her tail, sirens, brake lights.
+    // Five stars, the bank job's getaway (mission 8, final step): patrol
+    // cars behind, a roadblock across the road ahead, and the CONDOR
+    // helicopter's searchlight locked on Mara. Everything at once.
     state.mode = 'play';
-    state.clockMinutes = 16 * 60 + 30;
+    state.clockMinutes = 16 * 60 + 45;
     clearTraffic(state);
     putPlayerInCar(state, 1160, 840, 0, 270);
     state.autoDrive = true;
-    ringTraffic(state, 1160, 840, 6);
-    raiseWanted(state, 3);
-    for (let i = 0; i < 4; i++) {
+    ringTraffic(state, 1160, 840, 3);
+    state.money = 2450;
+    state.respect = 100;
+    giveSmg(state, 48);
+    raiseWanted(state, 5);
+    for (let i = 0; i < 3; i++) {
       state.police.push(makeCar(
-        1160 - 120 - i * 70, 840 + (i % 2 === 0 ? 24 : -24),
+        1160 - 130 - i * 75, 840 + (i % 2 === 0 ? 26 : -26),
         0, { kind: 'police', speed: 260 },
       ));
     }
-    startMission(state, 1);
-    state.missions.step = 2; // escape step: lose the cops
-    state.missions.targetCar = state.player.car;
-    state.message = 'Polisi mengejarmu! Kabur!';
+    spawnRoadblock(state);
+    state.heli = createHelicopter(state);
+    state.heli.x = 1160 - 150;
+    state.heli.y = 840 - 185;
+    state.heli.lightX = 1160;
+    state.heli.lightY = 840;
+    startMission(state, 7);
+    state.missions.step = 2; // getaway: reach the garage safehouse
+    state.missions.hasPackage = true;
+    state.message = 'Polisi mengejarmu! Hilang ke Garasi Bang Udin!';
     state.messageUntil = state.clockSeconds + 30;
     state.view.camX = 1160 - 640;
     state.view.camY = 840 - 400;
@@ -117,17 +139,20 @@ export function applyShot(state, name) {
   }
 
   if (name === 'mission') {
-    // Mission 2 in progress: steal the grey sedan at the Harbour Yard.
+    // Mission 4, the destroy step: Mara on foot in Southside, SMG in hand,
+    // the Sanca crew's car marked ahead and its guards watching it. Dax's
+    // briefing is still on screen.
     state.mode = 'play';
-    state.clockMinutes = 12 * 60;
+    state.clockMinutes = 15 * 60 + 30;
     clearTraffic(state);
-    p.x = 2060; p.y = 1620; p.onFoot = true; p.angle = 0.4;
-    startMission(state, 1);
-    ringTraffic(state, 2120, 1680, 4);
-    state.message = 'Dax: "Sedan abu-abu itu. Ambil, lalu hilang."';
-    state.messageUntil = state.clockSeconds + 30;
-    state.view.camX = 2060 - 640;
-    state.view.camY = 1620 - 400;
+    state.respect = 30;
+    giveSmg(state, 60);
+    p.x = 1100; p.y = 1430; p.onFoot = true; p.angle = 0.59;
+    startMission(state, 3);
+    state.missions.step = 1; // destroy the crew car
+    ringTraffic(state, 1160, 1480, 4);
+    state.view.camX = 1100 - 640;
+    state.view.camY = 1430 - 400;
     return;
   }
 

@@ -10,16 +10,22 @@ import { createInput, attachInput, wasPressed, endFrame } from './input.js';
 import {
   createPlayer, spawnParkedCars, spawnTraffic, spawnPeds,
   updatePlayer, updateTraffic, updatePeds, updatePolice,
-  tryEnterCar, exitCar, firePistol, meleeAttack, aimAngle,
-  updateParticles, maybeRoadblock,
+  tryEnterCar, exitCar, meleeAttack, aimAngle,
+  updateParticles, updateRoadblock, updateBurning, clearRoadblock,
 } from './entities.js';
+import {
+  createWeaponState, createPickups, fireWeapon, switchWeapon, updatePickups,
+} from './weapons.js';
+import { createGarageState, nearGarage, garageAction } from './garage.js';
+import { updateHelicopter } from './helicopter.js';
+import { createRaceState, updateRace } from './races.js';
 import {
   createMissionState, startMission, updateMissions, updateEnemies,
   missionTargetPos,
 } from './missions.js';
 import { drawWorld, updateCamera, createView, VIEW_W, VIEW_H } from './render.js';
 import { drawHud, drawScreens } from './hud.js';
-import { createAudio, unlockAudio, updateAudio } from './audio.js';
+import { createAudio, unlockAudio, updateAudio, RADIO_STATIONS } from './audio.js';
 import { saveGame, loadSave } from './save.js';
 import { applyShot } from './shots.js';
 
@@ -32,13 +38,22 @@ function createGame(seed, shot) {
     cars: [], peds: [], police: [], enemies: [], particles: [],
     money: 50,
     wanted: 0, wantedTimer: 0,
+    weapons: createWeaponState(),
+    pickups: createPickups(),
+    respect: 0,
+    garage: createGarageState(),
+    garageMenu: false,
+    heli: null,
+    roadblock: null, roadblockCooldown: 0, barriers: [], scorches: [],
+    race: createRaceState(),
+    radioStation: 0,
     clockMinutes: 9 * 60, clockSeconds: 0,
     mode: 'title', // title | play | paused | busted | wasted
     missions: createMissionState(),
     missionsDone: [],
     message: '', messageUntil: 0, dialog: null,
     missionTarget: null,
-    busted: false, roadblockActive: false,
+    busted: false,
     autoDrive: false, // ?shot= scenes keep the car rolling without input
     audio: createAudio(),
     input: createInput(),
@@ -73,7 +88,8 @@ function respawnAtHospital(state) {
   p.invulnerable = 2;
   state.wanted = 0;
   state.police = [];
-  state.roadblockActive = false;
+  clearRoadblock(state);
+  state.heli = null;
   state.busted = false;
 }
 
@@ -92,10 +108,51 @@ function update(state, dt) {
   // Staged screenshot scenes keep the car rolling on their own.
   if (state.autoDrive && p.car) input.up = true;
 
+  // The garage menu pauses the street: number keys buy, G/P closes.
+  if (state.garageMenu) {
+    for (let n = 1; n <= 5; n++) {
+      if (wasPressed(input, 'slot' + n)) {
+        const line = garageAction(state, n);
+        if (line) {
+          state.message = line;
+          state.messageUntil = state.clockSeconds + 3;
+        }
+      }
+    }
+    if (wasPressed(input, 'garage') || wasPressed(input, 'pause')) {
+      state.garageMenu = false;
+    }
+    return;
+  }
+
   if (wasPressed(input, 'pause')) {
     state.mode = 'paused';
     saveGame(state);
     return;
+  }
+  // Weapon slots 1-4.
+  for (let n = 1; n <= 4; n++) {
+    if (wasPressed(input, 'slot' + n)) switchWeapon(state, n);
+  }
+  // Garage door: G near Bang Udin's opens the menu.
+  if (wasPressed(input, 'garage')) {
+    if (nearGarage(state)) {
+      state.garageMenu = true;
+      return;
+    }
+    state.message = 'Garasi Bang Udin ada di Southside — cari ikon G di minimap.';
+    state.messageUntil = state.clockSeconds + 2.5;
+  }
+  // Car radio: R cycles the stations while driving.
+  if (wasPressed(input, 'radio')) {
+    if (p.car) {
+      state.radioStation = (state.radioStation + 1) % RADIO_STATIONS.length;
+      state.message = 'Radio: ' + RADIO_STATIONS[state.radioStation];
+      state.messageUntil = state.clockSeconds + 1.5;
+    } else {
+      state.message = 'Radio hanya menyala di dalam mobil.';
+      state.messageUntil = state.clockSeconds + 1.5;
+    }
   }
   if (wasPressed(input, 'action')) {
     if (p.onFoot) {
@@ -110,8 +167,10 @@ function update(state, dt) {
   }
   if (wasPressed(input, 'punch')) meleeAttack(state);
   if (input.shoot && p.onFoot) {
-    if (firePistol(state, aimAngle(state, input, state.view))) {
-      // Fired (or tried to): the shot itself is the feedback.
+    if (state.weapons.current === 'fist') {
+      meleeAttack(state);
+    } else {
+      fireWeapon(state, aimAngle(state, input, state.view));
     }
   } else if (input.shoot && p.car) {
     // No drive-by shooting: honk instead, like a Solmar local.
@@ -125,10 +184,14 @@ function update(state, dt) {
   updateTraffic(state, dt);
   updatePeds(state, dt);
   updatePolice(state, dt);
+  updateRoadblock(state, dt);
+  updateHelicopter(state, dt);
+  updateBurning(state, dt);
+  updatePickups(state);
   updateMissions(state, dt);
   updateEnemies(state, dt);
+  updateRace(state, dt);
   updateParticles(state, dt);
-  maybeRoadblock(state);
 
   state.missionTarget = missionTargetPos(state);
 
@@ -150,7 +213,8 @@ function update(state, dt) {
   }
 
   updateCamera(state.view, p.x, p.y, dt);
-  updateAudio(state.audio, dt, p.car ? p.car.speed : 0, state.wanted);
+  updateAudio(state.audio, dt, p.car ? p.car.speed : 0, state.wanted,
+    p.car ? state.radioStation : 0);
 }
 
 function render(state) {
@@ -202,6 +266,20 @@ export function boot() {
         state.player.y = save.playerY;
         state.player.health = save.health;
         state.clockMinutes = save.clockMinutes;
+        if (typeof save.respect === 'number') state.respect = save.respect;
+        if (save.garage) {
+          state.garage.engine = save.garage.engine || 0;
+          state.garage.armor = save.garage.armor || 0;
+        }
+        if (save.weapons) {
+          state.weapons.owned = save.weapons.owned.slice();
+          state.weapons.current = save.weapons.current;
+          state.weapons.ammo.smg = save.weapons.ammo.smg || 0;
+          state.weapons.ammo.shotgun = save.weapons.ammo.shotgun || 0;
+        }
+        if (save.raceBest) state.race.best = save.raceBest;
+        // Re-arm the saved mission (or its Respect gate) at the new spot.
+        startMission(state, save.missionIndex);
         state.mode = 'play';
         state.message = 'Lanjutan dimuat. Selamat datang kembali, Mara.';
         state.messageUntil = state.clockSeconds + 5;

@@ -7,6 +7,7 @@ export function createAudio() {
   return {
     ctx: null, master: null, engineOsc: null, engineGain: null,
     sirenOsc: null, sirenGain: null, musicTimer: 0, musicStep: 0,
+    radioTimer: 0, radioStep: 0,
     enabled: false, sirenOn: false,
   };
 }
@@ -100,8 +101,38 @@ export function playCash(audio) {
 }
 export function playBusted(audio) { blip(audio, 220, 0.5, 'sawtooth', 0.2, 110); }
 
+// Car radio: two fully synthesised stations, cycled with R while driving.
+// 1 = SOLMAR FM (slow sunset chords), 2 = BAY ROCK (driving bass + sparkle).
+export const RADIO_STATIONS = ['Radio mati', 'SOLMAR FM', 'BAY ROCK'];
+
+function updateRadio(audio, dt, station) {
+  audio.radioTimer += dt;
+  if (station === 1) {
+    // One warm chord every two seconds: root + fifth, very soft.
+    if (audio.radioTimer >= 2) {
+      audio.radioTimer -= 2;
+      const roots = [220, 174.6, 196, 164.8];
+      const root = roots[audio.radioStep % roots.length];
+      blip(audio, root, 1.9, 'sine', 0.045);
+      blip(audio, root * 1.5, 1.9, 'sine', 0.03);
+      blip(audio, root * 2, 1.7, 'triangle', 0.018);
+      audio.radioStep++;
+    }
+  } else if (station === 2) {
+    // Eighth-note bass drive with a sparkle note on the off-beats.
+    if (audio.radioTimer >= 0.24) {
+      audio.radioTimer -= 0.24;
+      const bass = [110, 110, 130.8, 110, 98, 98, 146.8, 164.8];
+      const step = audio.radioStep % bass.length;
+      blip(audio, bass[step], 0.2, 'square', 0.028);
+      if (step % 2 === 1) blip(audio, bass[step] * 4, 0.12, 'triangle', 0.014);
+      audio.radioStep++;
+    }
+  }
+}
+
 // Per-frame: engine pitch from speed, siren wail while wanted > 0, music.
-export function updateAudio(audio, dt, speed, wanted) {
+export function updateAudio(audio, dt, speed, wanted, radioStation = 0) {
   if (!audio.enabled || !audio.ctx) return;
   try {
     const t = audio.ctx.currentTime;
@@ -125,5 +156,7 @@ export function updateAudio(audio, dt, speed, wanted) {
       blip(audio, notes[audio.musicStep % notes.length], 0.42, 'sine', 0.05);
       audio.musicStep++;
     }
+    if (radioStation > 0) updateRadio(audio, dt, radioStation);
+    else audio.radioTimer = 0;
   } catch (e) { /* audio is best-effort */ }
 }
