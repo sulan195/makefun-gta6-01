@@ -75,14 +75,14 @@ export function buildCity(world) {
   }
 
   {
-    const x0 = -300, x1 = WORLD_W + 300, z0 = 1850, z1 = 2900;
+    const x0 = -300, x1 = WORLD_W + 300, z0 = 1900, z1 = 3600;
     const nx = 30, nz = 10;
     const ids = [];
     for (let j = 0; j <= nz; j++) {
       ids[j] = [];
       for (let i = 0; i <= nx; i++) {
         ids[j][i] = ground.vert(
-          x0 + ((x1 - x0) * i) / nx, -1.4, z0 + ((z1 - z0) * j) / nz,
+          x0 + ((x1 - x0) * i) / nx, 0.05, z0 + ((z1 - z0) * j) / nz,
           0, 1, 0, WATER, 2);
       }
     }
@@ -110,8 +110,10 @@ export function buildCity(world) {
   for (const x of V_ROADS) {
     for (const y of H_ROADS) {
       for (let i = -2; i <= 2; i++) {
-        ground.box(x + i * 13, 0.125, y - ROAD_W / 2 - 9, 7, 0.03, 10, CROSS);
-        ground.box(x - ROAD_W / 2 - 9, 0.125, y + i * 13, 10, 0.03, 7, CROSS);
+        ground.box(x + i * 15, 0.125, y - ROAD_W / 2 - 9, 8, 0.03, 10, CROSS);
+        ground.box(x + i * 15, 0.125, y + ROAD_W / 2 + 9, 8, 0.03, 10, CROSS);
+        ground.box(x - ROAD_W / 2 - 9, 0.125, y + i * 15, 10, 0.03, 8, CROSS);
+        ground.box(x + ROAD_W / 2 + 9, 0.125, y + i * 15, 10, 0.03, 8, CROSS);
       }
       props.cyl(x + 46, 5, y + 46, 0.5, 0.65, 10, 6, rgb('#22262a'));
       props.box(x + 46, 11, y + 46, 2.4, 5, 2.4, rgb('#14171a'));
@@ -231,6 +233,14 @@ export function buildCity(world) {
     props.box(x, 1.1, z, 27, 3.4, 8.5, rgb('#f6f2e6'));
     props.box(x + 1, 3.6, z, 10, 2.2, 6.5, rgb('#2e6fc2'));
     props.box(x - 10, 3.4, z, 5, 3, 6, rgb('#24272b'));
+    const wk = rgb('#d7edf5');
+    for (const sd of [-1, 1]) {
+      const a1 = ground.vert(x - 14, 0.22, z + sd * 3, 0, 1, 0, wk);
+      const a2 = ground.vert(x - 14, 0.22, z + sd * 5.2, 0, 1, 0, wk);
+      const a3 = ground.vert(x - 46, 0.22, z + sd * 13.5, 0, 1, 0, wk);
+      const a4 = ground.vert(x - 46, 0.22, z + sd * 11.3, 0, 1, 0, wk);
+      ground.quad(a1, a2, a3, a4);
+    }
   }
 
   return { ground, props };

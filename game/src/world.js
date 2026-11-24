@@ -12,6 +12,7 @@ export const H_ROADS = [200, 520, 840, 1160, 1480, 1680];
 const BUILDING_COLORS = [
   '#e8b48a', '#d9a06f', '#c98f5f', '#b7c4c9', '#9fb3bd', '#d6c9a8',
   '#e0cfae', '#c2a878', '#a8b8a0', '#d8b7a0', '#8fa8b8', '#e6d3b3',
+  '#d1603d', '#5f8a8b',
 ];
 const ROOF_COLORS = ['#7d6a58', '#5f7280', '#8a6f5c', '#6b7d6e', '#74604e'];
 
