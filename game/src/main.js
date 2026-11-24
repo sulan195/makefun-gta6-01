@@ -362,7 +362,7 @@ function frame() {
 }
 frame();
 document.getElementById('status').textContent =
-  'Solmar City ready — mode ' + state.mode + ' shot ' + (shot || 'none');
+  'SOLMAR HEAT ready — mode ' + state.mode + ' shot ' + (shot || 'none');
 window.__solmarReady = true;
 
 function markPicked(sel, btn) {
