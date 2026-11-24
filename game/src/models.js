@@ -195,8 +195,8 @@ export function buildDiamondMesh() {
 export function buildGunMesh() {
   const b = new Builder();
   const dark = rgb('#14161a');
-  b.box(1, 0, 0, 11, 2.4, 1.7, dark);
+  b.box(1.5, 0, 0, 12, 2.4, 1.7, dark);
   b.box(-1.5, -2, 0, 2, 3.2, 1.5, dark);
-  b.box(7.5, 0.5, 0, 4, 1.1, 1.1, dark);
+  b.box(8.5, 0.5, 0, 6, 1.1, 1.1, dark);
   return b;
 }

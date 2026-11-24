@@ -758,6 +758,27 @@ async function testLogic() {
       && loaded.weapons.ammo.smg === 25 && loaded.weapons.owned.includes('smg')
       && loaded.missionsDone.join(',') === 'taxi,steal,package';
   })());
+
+  // 38. New saves carry no wall-clock timestamp; a legacy save that has
+  // one still loads (unknown fields are ignored).
+  check('saves have no timestamp and legacy timestamps are ignored', (() => {
+    const data = saveMod.serializeSave(fakeState());
+    if ('savedAt' in data) return false;
+    putSave({ ...data, savedAt: '2026-11-24T00:00:00.000Z' });
+    return saveMod.loadSave() !== null;
+  })());
+
+  // 39. Mission completion pays the difficulty-scaled amount, and the
+  // message and dialog report that same scaled figure.
+  check('mission payout message shows the scaled amount', (() => {
+    const s = fakeState();
+    s.diffPay = 1.25;
+    const before = s.money;
+    mis.completeMission(s, { id: 't', title: 'Test Job', reward: 200, respect: 5 });
+    return s.money === before + 250
+      && s.message === 'Test Job complete! +$250'
+      && s.dialog.text.includes('$250');
+  })());
   delete globalThis.window;
 }
 
