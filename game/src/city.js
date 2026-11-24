@@ -14,9 +14,9 @@ const WATER = rgb('#1d5f8a');
 
 function buildingHeight(b) {
   const h = hashSeed(Math.round(b.x) + ',' + Math.round(b.y)) % 100;
-  if (b.district === 'Harbour') return 10 + (h % 8);
+  if (b.district === 'Harbour') return 24 + (h % 10);
   if (b.tall) return 78 + (h % 64);
-  return 26 + (h % 26);
+  return 30 + (h % 22);
 }
 
 function palm(b, x, z, s) {
