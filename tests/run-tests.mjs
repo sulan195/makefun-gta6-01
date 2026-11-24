@@ -676,6 +676,29 @@ async function testLogic() {
     });
   })());
 
+  // 34b. Vehicle variety factories and character customization.
+  check('truck and motorcycle factories produce geometry', (() => {
+    return ['buildTruckMesh', 'buildMotoMesh'].every((n) => {
+      const c = modelsMod[n]().counts();
+      return c.verts > 0 && c.tris > 0;
+    });
+  })());
+  check('custom person mesh uses the chosen skin colour', (() => {
+    const m = modelsMod.buildPersonMesh(0, { skin: '#112233', hair: '#445566', style: 2 });
+    const target = [0x11 / 255, 0x22 / 255, 0x33 / 255];
+    for (let i = 0; i < m.col.length; i += 3) {
+      if (Math.abs(m.col[i] - target[0]) < 0.01 && Math.abs(m.col[i + 1] - target[1]) < 0.01
+        && Math.abs(m.col[i + 2] - target[2]) < 0.01) return true;
+    }
+    return false;
+  })());
+  check('midday sun is brighter than dusk', (() => {
+    const noon = cityMod.sunForClock(12 * 60);
+    const dusk = cityMod.sunForClock(18 * 60);
+    const sum = (c) => c[0] + c[1] + c[2];
+    return sum(noon.amb) > sum(dusk.amb) && sum(noon.sunCol) > sum(dusk.sunCol);
+  })());
+
   // 35-37. loadSave is the game's only defence against a corrupted or
   // tampered save, so it gets an in-memory localStorage to run against.
   const store = {};
