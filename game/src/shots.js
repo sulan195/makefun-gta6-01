@@ -46,7 +46,7 @@ export function applyShot(state, shot) {
     const tc = (x, y, a, dir) => makeCar(x, y, a, { kind: 'traffic', driver: true, rng: state.rng, roadAxis: 'h', roadIndex: 5, dir, speed: 120 });
     state.cars.push(tc(2060, 1698, 0, 1), tc(2380, 1662, Math.PI, -1));
     [[2280, 1742], [2410, 1736], [2190, 1744]].forEach(([x, y], i) => {
-      state.peds.push({ x, y, angle: i % 2 ? Math.PI : 0, speed: 34, shirt: ['#e07840', '#4d7dc9', '#f0e8d8'][i], flee: 0, down: false, downTimer: 0, axis: 'h', roadPos: y, walkPhase: i * 2 });
+      state.peds.push({ x, y, angle: i % 2 ? Math.PI : 0, speed: 34, shirt: ['#e07840', '#4d7dc9', '#f0e8d8'][i], flee: 0, down: false, downTimer: 0, axis: 'h', roadPos: y, walkPhase: i * 2, variant: i % 3, scale: [0.95, 1.06, 1.0][i] });
     });
   } else if (shot === 'chase') {
     state.clockMinutes = 18 * 60;
@@ -69,8 +69,9 @@ export function applyShot(state, shot) {
     state.police.push(cop(736, 884, -0.06));
     spawnRoadblock(state);
     state.heli = createHelicopter(state);
-    state.heli.x = 1265;
-    state.heli.y = 648;
+    state.heli.x = 1255;
+    state.heli.y = 755;
+    state.heli.alt = 52; // fly it low so the CONDOR stays in frame
     state.heli.lightX = p.x;
     state.heli.lightY = p.y;
     state.autoDrive = true;
