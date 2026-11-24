@@ -93,6 +93,12 @@ export function buildCity(world) {
     }
   }
 
+  for (let x = 24; x < WORLD_W - 20; x += 44) {
+    const j = hashSeed('foam' + x) % 100;
+    ground.box(x + (j % 16), 0.09, 1892 + (j % 7), 32 + (j % 14), 0.05, 8,
+      shade('#eef7f2', 0.9 + (j % 11) / 100));
+  }
+
   for (const x of V_ROADS) {
     ground.box(x, 0.03, WORLD_H / 2, ROAD_W + 36, 0.06, WORLD_H, SIDEWALK);
     ground.box(x, 0.07, WORLD_H / 2, ROAD_W, 0.08, WORLD_H, ASPHALT);
