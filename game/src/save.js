@@ -1,6 +1,4 @@
-// save.js — save / load progress to localStorage (money, missions, position).
-// Pure serialisation is kept separate so Node tests can exercise it without
-// touching storage.
+// save.js — localStorage save/load with corrupt-save hardening.
 
 export const SAVE_KEY = 'solmar-city-save-v1';
 

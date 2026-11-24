@@ -1,8 +1,4 @@
-// effects.js — fire and aftermath: the particle system (sparks, dust,
-// flames, smoke — each particle carries a height so render.js can draw it
-// in 3D), burning cars, and the explosions that chain through traffic and
-// leave scorch marks on the asphalt. All randomness runs on the seeded
-// state RNG, so a staged scene burns exactly the same way every run.
+// effects.js — particles, burning cars and scorch marks.
 
 import { dist } from './util.js';
 import { playThud } from './audio.js';
@@ -66,7 +62,7 @@ export function updateParticles(state, dt) {
   state.tracers = state.tracers.filter((tr) => tr.life > 0);
 }
 
-// ------------------------------------------------------- burning cars ----
+// burning cars
 // A car at 0 hp catches fire: flames and smoke for a few seconds, then it
 // explodes — hurting everyone close, chaining into nearby cars and
 // leaving a scorch mark. Mara's own car warns her long before that.

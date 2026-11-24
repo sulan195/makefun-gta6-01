@@ -1,8 +1,4 @@
-// missions.js — Solmar City's story: eight jobs for Mara Voss, then free
-// roam with repeatable taxi fares and the Marina Loop street race. A
-// mission is a list of steps; each step is checked every tick and advances
-// when its condition is met. Later jobs are gated behind Respect ranks —
-// Dax only trusts Mara with bigger work once the street knows her name.
+// missions.js — Mara's story: eight missions for Dax, plus taxi fares.
 
 import { dist } from './util.js';
 import { makeCar } from './cars.js';

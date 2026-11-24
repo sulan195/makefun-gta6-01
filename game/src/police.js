@@ -1,6 +1,4 @@
-// police.js — the Solmar City PD: the wanted level, patrol cars that
-// chase and ram, and the roadblock unit that parks across the road ahead
-// at three stars. Wanted maths are pure and exported for the test suite.
+// police.js — wanted levels, pursuit cars, roadblocks and hiding.
 
 import { clamp, dist, angleDelta, range } from './util.js';
 import { V_ROADS, H_ROADS, WORLD_W, WORLD_H, nearestRoadPoint } from './world.js';
@@ -107,7 +105,7 @@ export function updatePolice(state, dt) {
   }
 }
 
-// ------------------------------------------------------------ roadblocks --
+// roadblocks
 // At three stars the police stop chasing only: they park two cars across
 // the road ahead of Mara and drop striped barriers between them. The unit
 // is stored apart from the patrol list so the chase maths never moves it;

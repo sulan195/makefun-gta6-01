@@ -1,7 +1,4 @@
-// shots.js — deterministic staged scenes for the screenshots.
-// ?shot=start|drive|chase|mission with ?seed= sets the game up so the
-// first frames already show the scene, with no input needed: the shore
-// from the air, a coastal drive, a five-star chase, a mission standoff.
+// shots.js — deterministic staged scenes for the screenshots (?shot=, ?seed=).
 
 import { makeCar } from './cars.js';
 import { createHelicopter } from './helicopter.js';

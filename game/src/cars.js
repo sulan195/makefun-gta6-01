@@ -1,7 +1,4 @@
-// cars.js — every car in Solmar City: the factory, parked and traffic
-// spawns, the traffic-light flow, and Mara's arcade driving physics
-// (tuned by Udin's Garage through garage.js). Pure simulation; render.js
-// draws the meshes.
+// cars.js — traffic, parked cars and driving physics.
 
 import { clamp, pick, range, makeRng } from './util.js';
 import { V_ROADS, H_ROADS, WORLD_W, WORLD_H } from './world.js';

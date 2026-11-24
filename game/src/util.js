@@ -1,5 +1,4 @@
-// util.js — small pure helpers shared by every Solmar City module.
-// Nothing here touches the DOM, so Node can import this file for tests.
+// util.js — small pure helpers shared by every module. No DOM.
 
 // mulberry32: a tiny deterministic PRNG. Same seed -> same stream, every run.
 export function makeRng(seed) {

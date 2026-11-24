@@ -1,7 +1,4 @@
-// render.js — the 3D renderer for Solmar City: WebGL2 setup, the merged
-// city, sun shadows projected from the real building geometry, blob
-// shadows, the CONDOR searchlight, tracers and particles. The static
-// city is two meshes; every dynamic prop shares a handful of models.
+// render.js — the WebGL2 renderer: merged city, sun shadows, searchlight, particles.
 
 import {
   createGL, createProgram, Mesh, MeshA, Points, Builder, BuilderA,

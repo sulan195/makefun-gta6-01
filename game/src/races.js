@@ -1,8 +1,4 @@
-// races.js — one repeatable street race in free roam: the Marina Loop.
-// Drive into the start ring at the Marina West pier and the checkpoints
-// light up around the coast; thread them all against the clock for cash
-// and Respect. Pure state machine — render.js draws the rings, hud.js
-// draws the timer, main.js just ticks it.
+// races.js — the Marina Loop checkpoint race.
 
 import { dist } from './util.js';
 import { addRespect } from './progression.js';

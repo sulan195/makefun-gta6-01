@@ -1,12 +1,6 @@
-// gl.js — the hand-rolled WebGL2 layer for Solmar City 3D: shader
-// programs, matrix maths, mesh builders. No libraries. Two families:
-// lit meshes (position/normal/color + a "kind" byte driving procedural
-// windows, water, police blink and tinting, plus a "part" byte that
-// swings character limbs in the shader) and alpha meshes (shadows,
-// searchlight, glows). Plain data until upload, so Node tests can
-// build geometry without a GL context.
+// gl.js — hand-rolled WebGL2 for Solmar City: shaders, matrices, mesh builders. No libraries.
 
-// ------------------------------------------------------------- matrices --
+// matrices
 export function m4ident() {
   return new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
 }
@@ -76,7 +70,7 @@ export function m3normal(m) {
   return new Float32Array([m[0], m[1], m[2], m[4], m[5], m[6], m[8], m[9], m[10]]);
 }
 
-// -------------------------------------------------------------- colours --
+// colours
 const rgbCache = new Map();
 export function rgb(hex) {
   let v = rgbCache.get(hex);
@@ -92,7 +86,7 @@ export function shade(hex, f) {
   return [Math.min(1, c[0] * f), Math.min(1, c[1] * f), Math.min(1, c[2] * f)];
 }
 
-// ------------------------------------------------------------ mesh build --
+// mesh build
 // Lit-mesh builder. kind: 0 plain, 1 building wall (windows), 2 water,
 // 3 emissive, 4/5 police light halves, 6 tintable. part: character limbs.
 export class Builder {
@@ -274,7 +268,7 @@ export class BuilderA {
   counts() { return { verts: this.pos.length / 3, tris: this.idx.length / 3 }; }
 }
 
-// -------------------------------------------------------------- GL setup --
+// GL setup
 export function createGL(canvas) {
   const gl = canvas.getContext('webgl2', { antialias: true, alpha: false });
   if (!gl) return null;
@@ -318,7 +312,7 @@ export function createProgram(gl, vsSrc, fsSrc, attribs = null) {
   };
 }
 
-// ------------------------------------------------------------- lit mesh --
+// lit mesh
 export const LIT_VS = `#version 300 es
 in vec3 aPos; in vec3 aNor; in vec3 aCol; in float aKind; in float aPart;
 uniform mat4 uProj, uView, uModel; uniform mat3 uNorm;

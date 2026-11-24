@@ -1,9 +1,4 @@
-// main.js — bootstrap and game loop for Solmar City 3D.
-// Parses ?shot= / ?seed=, builds the world and the renderer, then runs a
-// fixed-timestep simulation: player, traffic, pedestrians, police, the
-// helicopter, missions, the race, particles and burning cars — followed by
-// the WebGL render and the DOM HUD. The first frame is drawn synchronously
-// so a screenshot taken right after load already shows the game.
+// main.js — bootstrap and the fixed-timestep game loop for Solmar City 3D.
 
 import { buildWorld } from './world.js';
 import { makeRng } from './util.js';
@@ -243,8 +238,7 @@ function update(state, dt) {
   else if (p.health <= 0) state.mode = 'wasted';
 }
 
-// ------------------------------------------------------------- bootstrap ----
-
+// bootstrap
 const params = new URLSearchParams(location.search);
 const seed = parseInt(params.get('seed') || '1', 10) || 1;
 const shot = params.get('shot');

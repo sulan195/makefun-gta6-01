@@ -1,7 +1,4 @@
-// city.js — Solmar City's static geometry, merged into two lit builders:
-// `ground` (land, roads, beach, the animated sea) and `props` (buildings,
-// palms, lamps, harbour, seafront) — separate so render.js can project
-// props onto the ground as sun shadows. Pure data — no DOM, no GL.
+// city.js — Solmar City's static geometry, merged into ground + props lit builders. Pure data.
 
 import { Builder, rgb, shade } from './gl.js';
 import { hashSeed, makeRng } from './util.js';

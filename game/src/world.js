@@ -1,6 +1,4 @@
-// world.js — Solmar City: an original sun-soaked coastal city, generated
-// from a seed. Roads on a grid, blocks of buildings, one park district, a
-// harbour along the south edge. Plain data; render.js draws it.
+// world.js — Solmar City's layout data: road grid, buildings, trees, named places.
 
 import { makeRng, pick, range } from './util.js';
 

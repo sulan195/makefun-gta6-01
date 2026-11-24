@@ -1,9 +1,4 @@
-// input.js — keyboard + mouse state for Solmar City. One object, polled by
-// the game loop; edges (pressed-this-frame keys) are consumed by main.js.
-// The 3D camera adds two inputs on top of the classic set: Q held orbits
-// the camera left (E doubles as orbit-right when it is not busy entering
-// or leaving a car — main.js arbitrates), and dragging the mouse orbits
-// freely. Nothing here needs the pointer lock.
+// input.js — keyboard and mouse input state.
 
 export function createInput() {
   return {

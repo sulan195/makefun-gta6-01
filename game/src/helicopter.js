@@ -1,8 +1,4 @@
-// helicopter.js — CONDOR, the police air unit. It joins the chase at four
-// stars or more: it shadows Mara from above and keeps its searchlight on
-// her, which makes the wanted level decay far more slowly (the ground
-// units keep finding her again). When the heat drops below four stars it
-// banks away and leaves. Movement is plain data; render.js draws it.
+// helicopter.js — the CONDOR police helicopter and its searchlight.
 
 import { clamp, dist } from './util.js';
 import { WORLD_W, WORLD_H } from './world.js';

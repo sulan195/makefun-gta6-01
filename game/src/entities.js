@@ -1,7 +1,4 @@
-// entities.js — the people of Solmar City and the shared collision maths:
-// pedestrians who stroll and flee, the armed crew rivals, and the circle
-// vs building tests everything solid uses. Positions are world (x, y)
-// pairs on the ground plane; render.js lifts them into 3D.
+// entities.js — pedestrians, enemies and shared collision maths.
 
 import { clamp, dist, pick, range, circleHitsBox, pushCircleOutOfBox } from './util.js';
 import { V_ROADS, H_ROADS, WORLD_W, WORLD_H, ROAD_W } from './world.js';

@@ -1,8 +1,4 @@
-// hud.js — everything flat on top of the 3D world: cash, health and armor,
-// the Respect rank, weapon and ammunition, wanted stars, the clock and the
-// current district, the objective panel with its distance readout, message
-// and dialogue lines, the garage menu, and a top-down minimap drawn from
-// the same world data the 3D city is built from.
+// hud.js — the DOM HUD and minimap drawn over the 3D world.
 
 import { V_ROADS, H_ROADS, districtAt } from './world.js';
 import { rankFor, nextRank } from './progression.js';

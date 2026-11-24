@@ -1,9 +1,4 @@
-// combat.js — Mara's arsenal: fists, pistol, SMG and shotgun on keys 1-4,
-// each with its own damage, fire rate, range and spread. The pistol and
-// her fists are hers from the start; the SMG and the shotgun are picked
-// up in the city (and their ammunition is refilled at Udin's Garage). One
-// hit-scan helper resolves every pellet, and every shot leaves a tracer
-// for render.js to draw.
+// combat.js — weapons, firing, pickups and damage for Solmar City.
 
 import { dist } from './util.js';
 import { raiseWanted } from './police.js';

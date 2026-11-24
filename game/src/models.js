@@ -1,8 +1,4 @@
-// models.js — low-poly prop factories for Solmar City 3D. Every model faces
-// +X (its heading), stands on y=0, and is built with the lit-mesh Builder
-// from gl.js: pure data here, uploaded once by render.js. Vertex colours
-// carry the materials; kind 6 marks tintable panels (car bodies, shirts),
-// kinds 4/5 are the two halves of a police light bar.
+// models.js — low-poly prop factories. Every model faces +X and stands on y=0.
 
 import { Builder, rgb, shade } from './gl.js';
 

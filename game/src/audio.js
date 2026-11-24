@@ -1,7 +1,4 @@
-// audio.js — every sound in Solmar City is synthesised here with WebAudio:
-// engine hum, horn, siren, gunshot, thud, chime and a quiet bassline.
-// No audio files, no network. Everything is guarded: if the browser has no
-// AudioContext (headless screenshots, old browsers), every call is a no-op.
+// audio.js — synthesized engine, radio and effect sounds. No audio files.
 
 export function createAudio() {
   return {

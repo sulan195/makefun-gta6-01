@@ -1,7 +1,4 @@
-// progression.js — Mara's street reputation: Respect points and the five
-// ranks they unlock. Pure data + helpers; missions, fares and fights award
-// points through addRespect, and the later story missions require a rank
-// before Dax will hand them out.
+// progression.js — Respect ranks for Mara's rise.
 
 export const RANKS = [
   { name: 'Newcomer', min: 0 },

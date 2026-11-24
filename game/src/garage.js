@@ -1,8 +1,4 @@
-// garage.js — Udin's Garage in Southside: the city's one tuning shop.
-// Walk (or drive) up to it and press G for the menu: engine and armour
-// upgrades for Mara's current ride, a respray that washes the wanted level
-// away, and ammunition for the SMG and shotgun. Everything bought here is
-// kept in the save. All the maths is pure so Node tests can price it.
+// garage.js — Udin's Garage: repairs and upgrades.
 
 import { dist } from './util.js';
 

@@ -1,9 +1,4 @@
-// player.js — Mara Voss herself: the on-foot controller (camera-relative,
-// so W always walks away from the camera), entering and stealing cars,
-// melee, damage — and the third-person camera that follows her. The camera
-// is fully keyboard-driven: it eases in behind her heading, Q orbits it
-// left, E orbits it right whenever E is not busy with a car door, and the
-// mouse drags it freely. No pointer lock anywhere.
+// player.js — Mara's on-foot controller, car entry, melee, and the third-person camera.
 
 import { clamp, dist, angleDelta } from './util.js';
 import { WORLD_W, WORLD_H } from './world.js';
@@ -162,7 +157,7 @@ export function meleeAttack(state) {
   return true;
 }
 
-// ------------------------------------------------------------- camera ----
+// camera
 export function createCamera() {
   return {
     yaw: -Math.PI / 2, pitch: 0.34, orbit: 0,
