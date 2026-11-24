@@ -213,7 +213,8 @@ function advanceStep(state) {
 
 export function completeMission(state, def) {
   const ms = state.missions;
-  state.money += Math.round(def.reward * (state.diffPay || 1));
+  const paid = Math.round(def.reward * (state.diffPay || 1));
+  state.money += paid;
   if (def.clearWantedOnComplete) {
     state.wanted = 0;
     state.wantedTimer = 0;
@@ -221,10 +222,10 @@ export function completeMission(state, def) {
   addRespect(state, def.respect || 0);
   state.missionsDone.push(def.id);
   playCash(state.audio);
-  state.message = def.title + ' complete! +$' + def.reward;
+  state.message = def.title + ' complete! +$' + paid;
   state.messageUntil = state.clockSeconds + 4;
   state.dialog = {
-    text: 'Dax: "Good work, Mara. $' + def.reward + ' is in. Keep going."',
+    text: 'Dax: "Good work, Mara. $' + paid + ' is in. Keep going."',
     until: state.clockSeconds + 6,
   };
   ms.index += 1;
@@ -277,10 +278,11 @@ export function updateMissions(state, dt) {
         playPickup(state.audio);
       }
     } else if (dist(p.x, p.y, dest.x, dest.y) < 80) {
-      state.money += Math.round(ms.fare.reward * (state.diffPay || 1));
+      const paid = Math.round(ms.fare.reward * (state.diffPay || 1));
+      state.money += paid;
       addRespect(state, 2);
       playCash(state.audio);
-      state.message = 'Fare complete! +$' + ms.fare.reward;
+      state.message = 'Fare complete! +$' + paid;
       ms.fare = null;
       startFare(state);
     }

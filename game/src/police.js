@@ -56,7 +56,8 @@ export function updatePolice(state, dt) {
     nearest = Math.min(nearest, d);
     const wantAngle = Math.atan2(p.y - pc.y, p.x - pc.x);
     pc.angle += clamp(angleDelta(pc.angle, wantAngle), -2.6 * dt, 2.6 * dt);
-    const target = (p.onFoot && d < 55) ? 0 : (d > 60 ? POLICE_MAX_SPEED * (state.diffCop || 1) : 120);
+    const target = (p.onFoot && d < 55) ? 0
+      : (d > 60 ? POLICE_MAX_SPEED : 120) * (state.diffCop || 1);
     if (pc.speed < target) pc.speed += 300 * dt;
     else pc.speed -= 200 * dt;
     pc.x += Math.cos(pc.angle) * pc.speed * dt;

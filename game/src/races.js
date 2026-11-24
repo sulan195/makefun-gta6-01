@@ -56,10 +56,11 @@ export function updateRace(state, dt) {
       race.active = false;
       const isBest = !race.best || race.time < race.best;
       if (isBest) race.best = race.time;
-      state.money += Math.round(RACE_REWARD * (state.diffPay || 1));
+      const paid = Math.round(RACE_REWARD * (state.diffPay || 1));
+      state.money += paid;
       addRespect(state, RACE_RESPECT);
       playCash(state.audio);
-      state.message = 'FINISH! ' + formatRaceTime(race.time) + ' — +$' + RACE_REWARD
+      state.message = 'FINISH! ' + formatRaceTime(race.time) + ' — +$' + paid
         + (isBest ? ' (new record!)' : ' (record ' + formatRaceTime(race.best) + ')');
       state.messageUntil = state.clockSeconds + 5;
     } else {

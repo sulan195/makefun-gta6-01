@@ -134,6 +134,8 @@ function showPane(name) {
     const el = document.getElementById('menu-' + p);
     if (el) el.style.display = p === name ? '' : 'none';
   }
+  const f = document.querySelector('#menu-' + name + ' button');
+  if (f) f.focus();
 }
 
 function openMenuFlow(state, flow) {
@@ -234,8 +236,20 @@ function handleKeys(state) {
     return;
   }
   if (mode === 'title') {
-    if (wasPressed(input, 'confirm')) openMenuFlow(state, 'new');
-    else if (continuePressed) openMenuFlow(state, 'continue');
+    const ae = document.activeElement;
+    const dir = wasPressed(input, 'down') ? 1 : wasPressed(input, 'up') ? -1 : 0;
+    if (dir && (!ae || ae.tagName !== 'INPUT')) {
+      const bs = [...document.querySelectorAll('#title button')]
+        .filter((b) => b.getClientRects().length);
+      if (bs.length) {
+        let i = bs.indexOf(ae);
+        i = i < 0 ? 0 : (i + dir + bs.length) % bs.length;
+        bs[i].focus();
+      }
+    }
+    if ((!ae || ae.tagName !== 'BUTTON') && wasPressed(input, 'confirm')) {
+      openMenuFlow(state, 'new');
+    } else if (continuePressed) openMenuFlow(state, 'continue');
     continuePressed = false;
     return;
   }
