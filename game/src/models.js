@@ -127,11 +127,11 @@ export function buildMotoMesh() {
 
 export function buildHeliMesh() {
   const b = new Builder();
-  const body = rgb('#22384f');
+  const body = rgb('#5a7a94');
   const white = rgb('#edf1f5');
   const blue = rgb('#1248c0');
   b.box(0, 0, 0, 34, 13, 14.5, body);
-  b.box(0, 7.2, 0, 29, 1.8, 12.5, white);
+  b.box(0, 7, 0, 30, 3, 13, white);
   b.box(0, -1, -7.6, 30, 5, 1, blue);
   b.box(0, -1, 7.6, 30, 5, 1, blue);
   b.box(15.5, 0.5, 0, 7, 8.5, 12, GLASS);
