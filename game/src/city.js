@@ -48,6 +48,39 @@ export function buildCity(world) {
   // Palmera Park green.
   ground.box((1160 + 1480) / 2, 0.015, (840 + 1160) / 2, 232, 0.07, 232, GRASS);
 
+  // Distant skyline clusters on the far shore: low hazy silhouettes that
+  // break the fog band at the horizon (in ground, so they cast no shadows).
+  for (let i = 0; i < 44; i++) {
+    const a = (i % 6) * (Math.PI / 3) + (hashSeed('sky' + i) % 100) / 100 * 0.34 - 0.17;
+    const rad = 2700 + (hashSeed('skyr' + i) % 500);
+    const x = 1280 + Math.cos(a) * rad, z = 1000 + Math.sin(a) * rad;
+    if (z > 1750 && z < 3050 && x > -350 && x < 2900) continue; // the bay
+    const hh = 55 + (hashSeed('skyh' + i) % 95);
+    ground.box(x, hh / 2 - 2, z, 80 + (hashSeed('skyw' + i) % 70), hh,
+      80, rgb('#55677e'));
+  }
+
+  // Ground richness: tonal patches on the sand and the park grass, and
+  // bright beach towels scattered along the shore.
+  for (let i = 0; i < 70; i++) {
+    ground.box(60 + (hashSeed('sand' + i) % 2400), 0.075,
+      1754 + (hashSeed('sandz' + i) % 124),
+      26 + (hashSeed('sandw' + i) % 42), 0.05, 12 + (hashSeed('sandd' + i) % 16),
+      shade('#e6d09e', 0.88 + (hashSeed('sandc' + i) % 17) / 100));
+  }
+  const TOWEL = ['#e2543e', '#3e7dc9', '#f0b429', '#7dbb6a', '#c95f8a'];
+  for (let i = 0; i < 24; i++) {
+    ground.box(120 + (hashSeed('towel' + i) % 2300), 0.09,
+      1762 + (hashSeed('towelz' + i) % 108), 12, 0.06, 20,
+      rgb(TOWEL[i % 5]), { ry: (hashSeed('towelr' + i) % 60) / 100 });
+  }
+  for (let i = 0; i < 26; i++) {
+    ground.box(1216 + (hashSeed('grass' + i) % 208), 0.075,
+      896 + (hashSeed('grassz' + i) % 208),
+      20 + (hashSeed('grassw' + i) % 26), 0.05, 14 + (hashSeed('grassd' + i) % 18),
+      shade('#7da05c', 0.88 + (hashSeed('grassc' + i) % 16) / 100));
+  }
+
   // The sea: a tessellated plane south of the beach (kind 2 = waves).
   {
     const x0 = -300, x1 = WORLD_W + 300, z0 = 1850, z1 = 2900;
@@ -123,9 +156,27 @@ export function buildCity(world) {
     if (r >= 45 && r < 58 && b.district !== 'Harbour') {
       props.cyl(cx - 4, h + 2.6, cz + 3, 2.6, 2.6, 2.6, 8, shade(b.roof, 1.5));
     }
-    // Rooftop billboards on some towers (emissive panels).
+    // Rooftop billboards on some towers: real text signs from the atlas.
     if (b.tall && r >= 60 && r < 80) {
-      props.panel(cx, h + 1.4, cz + b.h / 2 + 1, b.w * 0.66, 8, 0, rgb(['#ffd34d', '#ff5f8f', '#39c2d7'][r % 3]), { kind: 3 });
+      props.spanel(cx, h + 1.4, cz + b.h / 2 + 1, b.w * 0.66, 8, 0, r % 8);
+    }
+    // A shopfront sign on the side facing the nearest road.
+    const r2 = hashSeed('sign' + Math.round(b.x) + ',' + Math.round(b.y)) % 100;
+    if (r2 < 38 && h >= 19 && b.district !== 'Harbour') {
+      const nv = V_ROADS.reduce((m, a2) =>
+        Math.abs(a2 - cx) < Math.abs(m - cx) ? a2 : m, V_ROADS[0]);
+      const nh = H_ROADS.reduce((m, a2) =>
+        Math.abs(a2 - cz) < Math.abs(m - cz) ? a2 : m, H_ROADS[0]);
+      if (Math.abs(nv - cx) < Math.abs(nh - cz)) {
+        const east = nv > cx;
+        props.spanel(east ? b.x + b.w + 0.7 : b.x - 0.7, 9, cz,
+          Math.min(b.h * 0.72, 62), 7.5, east ? -Math.PI / 2 : Math.PI / 2,
+          r2 % 8);
+      } else {
+        const south = nh > cz;
+        props.spanel(cx, 9, south ? b.y + b.h + 0.7 : b.y - 0.7,
+          Math.min(b.w * 0.72, 62), 7.5, south ? 0 : Math.PI, r2 % 8);
+      }
     }
   }
 
@@ -141,6 +192,7 @@ export function buildCity(world) {
   props.cyl(788, 9, 1428, 0.5, 0.65, 18, 6, rgb('#22262a'));
   props.box(788, 17.5, 1428, 3, 9, 26, rgb('#1248c0'), { kind: 3 });
   props.box(788, 17.5, 1428, 3.4, 2.2, 26, rgb('#ffd34d'), { kind: 3 });
+  props.spanel(790, 13.5, 1428, 24, 8, -Math.PI / 2, 2); // UDIN'S GARAGE
 
   // Two harbour cranes over the yards.
   const crane = rgb('#c85a20');
