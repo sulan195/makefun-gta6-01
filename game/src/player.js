@@ -1,4 +1,3 @@
-// player.js — Mara's on-foot controller, car entry, melee, and the third-person camera.
 
 import { clamp, dist, angleDelta } from './util.js';
 import { WORLD_W, WORLD_H } from './world.js';
@@ -23,7 +22,7 @@ export function createPlayer(x, y) {
 export function damagePlayer(state, amount) {
   const p = state.player;
   if (p.invulnerable > 0) return p.health;
-  let rest = amount;
+  let rest = amount * (state.diffDmg || 1);
   if (p.armor > 0) {
     const absorbed = Math.min(p.armor, rest * 0.6);
     p.armor -= absorbed;
@@ -45,8 +44,6 @@ export function nearestCar(state, maxDist) {
   return best;
 }
 
-// E pressed near a car: climb in. Stealing a driven car raises wanted when
-// a police car can see it; a parked car is free. Returns a result object.
 export function tryEnterCar(state) {
   const player = state.player;
   if (!player.onFoot) return { ok: false, reason: 'already-driving' };
@@ -98,7 +95,6 @@ function updatePlayerOnFoot(state, input, dt) {
   const r = (input.right ? 1 : 0) - (input.left ? 1 : 0);
   p.moving = f !== 0 || r !== 0;
   if (p.moving) {
-    // Forward = where the camera looks; right = forward turned -90°.
     const mx = Math.cos(yaw) * f + Math.sin(yaw) * r;
     const my = Math.sin(yaw) * f - Math.cos(yaw) * r;
     const len = Math.hypot(mx, my);
@@ -157,7 +153,6 @@ export function meleeAttack(state) {
   return true;
 }
 
-// camera
 export function createCamera() {
   return {
     yaw: -Math.PI / 2, pitch: 0.34, orbit: 0,
@@ -165,9 +160,6 @@ export function createCamera() {
   };
 }
 
-// One tick of the third-person camera. Reads the player's (or her car's)
-// position and heading, applies the user's orbit offset, and resolves the
-// eye point against the buildings so it never clips through a tower.
 export function updateCamera(state, dt) {
   const cam = state.camera;
   const p = state.player;
@@ -175,7 +167,6 @@ export function updateCamera(state, dt) {
   const focus = p.car || p;
   const speed = p.car ? Math.abs(p.car.speed) : 0;
 
-  // Orbit controls: Q, E (when it is not busy with a door), mouse drag.
   let orbitKey = 0;
   if (input && input.camLeft) orbitKey -= 1;
   const eBusy = p.onFoot
@@ -187,7 +178,6 @@ export function updateCamera(state, dt) {
     cam.orbit += input.dragDX * 0.0052;
     cam.pitch = clamp(cam.pitch + input.dragDY * 0.003, 0.12, 0.95);
   }
-  // While driving, the user's offset slowly relaxes back to dead astern.
   if (p.car && orbitKey === 0) cam.orbit *= Math.max(0, 1 - dt * 0.55);
 
   const desired = focus.angle + cam.orbit;
@@ -200,7 +190,6 @@ export function updateCamera(state, dt) {
   let cx = focus.x - Math.cos(cam.yaw) * hd;
   let cz = focus.y - Math.sin(cam.yaw) * hd;
   let cy = 13 + cam.dist * Math.sin(cam.pitch);
-  // Keep the eye out of the buildings and above the ground.
   const probe = { x: cx, y: cz };
   collideWithBuildings(probe, 7, state.world);
   cx = clamp(probe.x, -260, WORLD_W + 260);

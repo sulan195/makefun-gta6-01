@@ -1,4 +1,3 @@
-// main.js — bootstrap and the fixed-timestep game loop for Solmar City 3D.
 
 import { buildWorld } from './world.js';
 import { makeRng } from './util.js';
@@ -19,10 +18,10 @@ import {
 } from './missions.js';
 import { createRaceState, updateRace } from './races.js';
 import { createGarageState, garageAction, nearGarage } from './garage.js';
-import { createAudio, unlockAudio, updateAudio, RADIO_STATIONS } from './audio.js';
-import { loadSave, saveGame, hasSave } from './save.js';
+import { createAudio, unlockAudio, updateAudio, setVolume, RADIO_STATIONS } from './audio.js';
+import { loadSave, saveGame, hasSave, slotSummary } from './save.js';
 import { updateParticles, updateBurning } from './effects.js';
-import { createRenderer, drawScene } from './render.js';
+import { createRenderer, drawScene, rebuildPlayer } from './render.js';
 import { createHud, updateHud } from './hud.js';
 import { applyShot } from './shots.js';
 
@@ -37,7 +36,7 @@ export function createGame(seed) {
     input: createInput(),
     mode: 'title',
     clockSeconds: 0,
-    clockMinutes: 16 * 60 + 40,
+    clockMinutes: 10 * 60 + 30,
     player: createPlayer(340, 330),
     camera: createCamera(),
     cars: [],
@@ -71,21 +70,42 @@ export function createGame(seed) {
     garageMessage: '',
     autoDrive: false,
     shot: null,
+    slot: 0,
+    difficulty: 1,
+    custom: null,
+    quality: 'high',
   };
+  applyDifficulty(state);
   state.cars = [...spawnParkedCars(world, rng), ...spawnTraffic(world, rng, 10)];
   state.peds = spawnPeds(world, rng, 26);
   startMission(state, 0);
   return state;
 }
 
+const DIFFS = [
+  { dmg: 0.6, pay: 1.25, cop: 0.88 },
+  { dmg: 1, pay: 1, cop: 1 },
+  { dmg: 1.5, pay: 0.8, cop: 1.15 },
+];
+
+export function applyDifficulty(state) {
+  const d = DIFFS[state.difficulty] || DIFFS[1];
+  state.diffDmg = d.dmg;
+  state.diffPay = d.pay;
+  state.diffCop = d.cop;
+}
+
 function loadInto(state) {
-  const s = loadSave();
+  const s = loadSave(state.slot);
   if (!s) return false;
   state.money = s.money;
   state.respect = s.respect || 0;
   state.missionsDone = s.missionsDone || [];
   if (s.weapons) state.weapons = s.weapons;
   if (s.garage) state.garage = { engine: s.garage.engine || 0, armor: s.garage.armor || 0 };
+  state.difficulty = s.difficulty ?? 1;
+  state.custom = s.custom || null;
+  applyDifficulty(state);
   if (typeof s.clockMinutes === 'number') state.clockMinutes = s.clockMinutes;
   if (typeof s.raceBest === 'number') state.race.best = s.raceBest;
   state.player.x = s.playerX || state.player.x;
@@ -100,8 +120,69 @@ function loadInto(state) {
 
 function startPlay(state, cont) {
   if (cont) loadInto(state);
+  if (renderer) rebuildPlayer(renderer, state.custom);
   state.mode = 'play';
   state.dialog = null;
+}
+
+const menuCtx = { flow: 'new', slot: 0, armed: -1, diff: 1,
+  custom: { skin: '#d9a066', hair: '#241a12', style: 0 } };
+const MENU_PANES = ['main', 'slots', 'custom', 'diff', 'options', 'help'];
+
+function showPane(name) {
+  for (const p of MENU_PANES) {
+    const el = document.getElementById('menu-' + p);
+    if (el) el.style.display = p === name ? '' : 'none';
+  }
+}
+
+function openMenuFlow(state, flow) {
+  menuCtx.flow = flow;
+  menuCtx.armed = -1;
+  renderSlots(state);
+  showPane('slots');
+}
+
+function renderSlots(state) {
+  const box = document.getElementById('slots');
+  box.innerHTML = '';
+  for (let i = 0; i < 3; i++) {
+    const s = slotSummary(i);
+    const b = document.createElement('button');
+    b.textContent = 'SLOT ' + (i + 1) + (s
+      ? ' — $' + s.money + ' · Respect ' + s.respect + ' · Mission ' + (s.missionIndex + 1)
+      : ' — EMPTY');
+    b.addEventListener('click', () => pickSlot(state, i, s));
+    box.appendChild(b);
+  }
+}
+
+function pickSlot(state, i, s) {
+  if (menuCtx.flow === 'continue') {
+    if (!s) return;
+    state.slot = i;
+    startPlay(state, true);
+    showPane('main');
+    return;
+  }
+  if (s && menuCtx.armed !== i) {
+    menuCtx.armed = i;
+    renderSlots(state);
+    document.getElementById('slots').children[i].textContent =
+      'OVERWRITE SLOT ' + (i + 1) + '? CLICK AGAIN';
+    return;
+  }
+  menuCtx.slot = i;
+  showPane('custom');
+}
+
+function startFromMenu(state) {
+  state.slot = menuCtx.slot;
+  state.custom = { ...menuCtx.custom };
+  state.difficulty = menuCtx.diff;
+  applyDifficulty(state);
+  startPlay(state, false);
+  showPane('main');
 }
 
 function respawn(state) {
@@ -132,7 +213,6 @@ function respawn(state) {
   state.mode = 'play';
 }
 
-// One-shot key actions, handled once per animation frame (not per step).
 let continuePressed = false;
 
 function handleKeys(state) {
@@ -154,8 +234,8 @@ function handleKeys(state) {
     return;
   }
   if (mode === 'title') {
-    if (wasPressed(input, 'confirm')) startPlay(state, false);
-    else if (continuePressed && hasSave()) startPlay(state, true);
+    if (wasPressed(input, 'confirm')) openMenuFlow(state, 'new');
+    else if (continuePressed) openMenuFlow(state, 'continue');
     continuePressed = false;
     return;
   }
@@ -212,7 +292,6 @@ function update(state, dt) {
   if (state.autoDrive) input.up = true;
   updatePlayer(state, input, dt);
 
-  // Combat: held fire (the SMG loves it); F or a fist slot throws a punch.
   if (p.onFoot && (input.shoot || input.punch)) {
     p.angle = state.camera.yaw + state.camera.orbit;
     if (input.punch || state.weapons.current === 'fist') meleeAttack(state);
@@ -238,7 +317,6 @@ function update(state, dt) {
   else if (p.health <= 0) state.mode = 'wasted';
 }
 
-// bootstrap
 const params = new URLSearchParams(location.search);
 const seed = parseInt(params.get('seed') || '1', 10) || 1;
 const shot = params.get('shot');
@@ -256,9 +334,6 @@ addEventListener('keydown', (e) => {
   unlockAudio(state.audio);
 });
 addEventListener('pointerdown', () => unlockAudio(state.audio));
-canvas.addEventListener('pointerdown', () => {
-  if (state.mode === 'title') startPlay(state, false);
-});
 
 if (renderer) window.__solmarGL = true;
 window.__solmarState = state;
@@ -274,6 +349,54 @@ frame();
 document.getElementById('status').textContent =
   'Solmar City ready — mode ' + state.mode + ' shot ' + (shot || 'none');
 window.__solmarReady = true;
+
+function markPicked(sel, btn) {
+  document.querySelectorAll(sel).forEach((b) => b.classList.toggle('picked', b === btn));
+}
+document.querySelectorAll('#menu-main button').forEach((b) => {
+  b.addEventListener('click', () => {
+    const act = b.dataset.act;
+    if (act === 'new') openMenuFlow(state, 'new');
+    else if (act === 'continue') openMenuFlow(state, 'continue');
+    else if (act === 'options') showPane('options');
+    else if (act === 'help') showPane('help');
+    else if (act === 'exit') {
+      document.getElementById('title').style.display = 'none';
+      document.getElementById('exited').style.display = '';
+    }
+  });
+});
+document.querySelectorAll('[data-back]').forEach((b) =>
+  b.addEventListener('click', () => showPane('main')));
+document.querySelectorAll('[data-style]').forEach((b) =>
+  b.addEventListener('click', () => {
+    menuCtx.custom.style = Number(b.dataset.style);
+    markPicked('[data-style]', b);
+  }));
+document.querySelectorAll('[data-skin]').forEach((b) =>
+  b.addEventListener('click', () => {
+    menuCtx.custom.skin = b.dataset.skin;
+    markPicked('[data-skin]', b);
+  }));
+document.querySelectorAll('[data-hair]').forEach((b) =>
+  b.addEventListener('click', () => {
+    menuCtx.custom.hair = b.dataset.hair;
+    markPicked('[data-hair]', b);
+  }));
+document.getElementById('custom-next').addEventListener('click', () => showPane('diff'));
+document.querySelectorAll('[data-diff]').forEach((b) =>
+  b.addEventListener('click', () => {
+    menuCtx.diff = Number(b.dataset.diff);
+    markPicked('[data-diff]', b);
+  }));
+document.getElementById('diff-start').addEventListener('click', () => startFromMenu(state));
+document.getElementById('vol').addEventListener('input', (e) =>
+  setVolume(state.audio, Number(e.target.value) / 100));
+document.querySelectorAll('[data-q]').forEach((b) =>
+  b.addEventListener('click', () => {
+    state.quality = b.dataset.q;
+    markPicked('[data-q]', b);
+  }));
 
 let last = performance.now();
 let acc = 0;

@@ -59,10 +59,21 @@
               text-shadow: 0 2px 8px #000; }
   #title .story { margin-top: 14px; max-width: 620px; font-size: 15.5px; line-height: 1.45; color: #f4ede0;
                   text-shadow: 0 1px 5px #000; }
-  #title .keys { margin-top: 20px; font-size: 14.5px; line-height: 1.7; color: #dfe7ee;
-                 text-shadow: 0 1px 4px #000; }
-  #title .start { margin-top: 16px; font-size: 19px; font-weight: 800; letter-spacing: 1.5px; color: #ffd23e;
+  .menu { margin-top: 20px; display: flex; flex-direction: column; gap: 9px; align-items: center; }
+  .menu button { min-width: 300px; padding: 10px 18px; font-size: 16.5px; font-weight: 800;
+    letter-spacing: 1.2px; color: #ffe9a8; background: rgba(8,12,18,0.72); border: 1px solid rgba(255,210,62,0.45);
+    border-radius: 8px; cursor: pointer; font-family: inherit; }
+  .menu button:hover { background: rgba(255,210,62,0.22); color: #fff; }
+  .menu button.picked { background: #ffd23e; color: #111; }
+  .menu .mtitle { font-size: 19px; font-weight: 800; letter-spacing: 2px; color: #ffd23e;
                   text-shadow: 0 2px 8px #000; }
+  .menu .mrow { display: flex; gap: 8px; align-items: center; justify-content: center; }
+  .menu .mrow button { min-width: 0; }
+  .menu .mlabel { font-size: 13px; letter-spacing: 1.4px; color: #dfe7ee; min-width: 92px; text-align: right; }
+  .swatch { min-width: 0 !important; width: 40px; height: 30px; padding: 0 !important; }
+  .menu input[type=range] { width: 220px; }
+  .helptext { max-width: 600px; font-size: 14.5px; line-height: 1.7; color: #dfe7ee;
+              text-shadow: 0 1px 4px #000; }
   .bigverdict { font-size: 84px; font-weight: 900; letter-spacing: 8px; margin: 0;
                 text-shadow: 0 6px 24px #000; }
   #busted { background: rgba(10, 20, 50, 0.45); }
@@ -96,7 +107,7 @@
     </div>
     <div id="topright">
       <div id="stars"><span id="starson"></span><span id="starsoff">☆☆☆☆☆</span></div>
-      <div id="clock">16:40</div>
+      <div id="clock">10:30</div>
       <div id="district">Old Town</div>
     </div>
     <div id="bottomleft">
@@ -145,12 +156,57 @@
     <div class="story">A coastal city of palms, neon and old debts. Mara Voss drives a taxi by day —
       and by night she runs jobs for Dax: stolen cars, hot packages, one last bank score.
       Earn Respect, dodge the Solmar police, and become a legend of the shore.</div>
-    <div class="keys">
-      WASD / Arrows — move &amp; drive &nbsp;·&nbsp; E — enter car / interact &nbsp;·&nbsp; Q / E — orbit camera<br>
-      Space / Click — shoot &nbsp;·&nbsp; 1–4 — weapons &nbsp;·&nbsp; Shift — brake &nbsp;·&nbsp; R — radio<br>
-      G — Udin's Garage menu &nbsp;·&nbsp; P — pause &amp; save &nbsp;·&nbsp; Drag mouse — look around
+    <div class="menu" id="menu-main">
+      <button data-act="new">NEW GAME</button>
+      <button data-act="continue">CONTINUE</button>
+      <button data-act="options">OPTIONS</button>
+      <button data-act="help">HELP</button>
+      <button data-act="exit">EXIT</button>
     </div>
-    <div class="start">PRESS ENTER TO START &nbsp;·&nbsp; C TO CONTINUE</div>
+    <div class="menu" id="menu-slots" style="display:none">
+      <div class="mtitle">CHOOSE A SAVE SLOT</div>
+      <div id="slots" class="menu" style="margin-top:0"></div>
+      <button data-back>BACK</button>
+    </div>
+    <div class="menu" id="menu-custom" style="display:none">
+      <div class="mtitle">CREATE MARA</div>
+      <div class="mrow"><span class="mlabel">HAIR STYLE</span>
+        <button data-style="0" class="picked">SHORT</button><button data-style="1">CAP</button><button data-style="2">LONG</button></div>
+      <div class="mrow"><span class="mlabel">HAIR COLOR</span>
+        <button data-hair="#241a12" class="swatch picked" style="background:#241a12"></button><button data-hair="#6b4a2f" class="swatch" style="background:#6b4a2f"></button><button data-hair="#c9a227" class="swatch" style="background:#c9a227"></button><button data-hair="#b03a2e" class="swatch" style="background:#b03a2e"></button><button data-hair="#3a3f45" class="swatch" style="background:#3a3f45"></button></div>
+      <div class="mrow"><span class="mlabel">SKIN</span>
+        <button data-skin="#f0c8a0" class="swatch" style="background:#f0c8a0"></button><button data-skin="#d9a066" class="swatch picked" style="background:#d9a066"></button><button data-skin="#a06844" class="swatch" style="background:#a06844"></button><button data-skin="#6e4423" class="swatch" style="background:#6e4423"></button></div>
+      <button id="custom-next">NEXT: DIFFICULTY</button>
+      <button data-back>BACK</button>
+    </div>
+    <div class="menu" id="menu-diff" style="display:none">
+      <div class="mtitle">DIFFICULTY</div>
+      <button data-diff="0">EASY — gentler police, bigger payouts</button>
+      <button data-diff="1" class="picked">NORMAL — the intended Solmar</button>
+      <button data-diff="2">HARD — ruthless police, thinner payouts</button>
+      <button id="diff-start">START GAME</button>
+      <button data-back>BACK</button>
+    </div>
+    <div class="menu" id="menu-options" style="display:none">
+      <div class="mtitle">OPTIONS</div>
+      <div class="mrow"><span class="mlabel">VOLUME</span><input type="range" id="vol" min="0" max="100" value="80"></div>
+      <div class="mrow"><span class="mlabel">GRAPHICS</span>
+        <button data-q="low">LOW</button><button data-q="medium">MEDIUM</button><button data-q="high" class="picked">HIGH</button></div>
+      <button data-back>BACK</button>
+    </div>
+    <div class="menu" id="menu-help" style="display:none">
+      <div class="mtitle">HOW TO PLAY</div>
+      <div class="helptext">WASD / Arrows — move &amp; drive &nbsp;·&nbsp; E — enter car / interact &nbsp;·&nbsp; Q / E — orbit camera<br>
+        Space / Click — shoot &nbsp;·&nbsp; 1–4 — weapons &nbsp;·&nbsp; Shift — brake &nbsp;·&nbsp; R — radio<br>
+        G — Udin's Garage menu &nbsp;·&nbsp; P — pause &amp; save &nbsp;·&nbsp; Drag mouse — look around<br>
+        Follow the gold marker to run Dax's jobs, earn Respect, and become a legend of the shore.</div>
+      <button data-back>BACK</button>
+    </div>
+  </div>
+
+  <div class="screen" id="exited" style="display:none">
+    <h1 class="bigverdict" style="color:#ffd23e;font-size:52px">FAREWELL, MARA</h1>
+    <div class="verdict-sub">Thanks for playing Solmar City. Reload the page to return.</div>
   </div>
 
   <div id="status">loading…</div>

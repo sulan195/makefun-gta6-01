@@ -1,4 +1,3 @@
-// races.js — the Marina Loop checkpoint race.
 
 import { dist } from './util.js';
 import { addRespect } from './progression.js';
@@ -38,7 +37,6 @@ export function updateRace(state, dt) {
   const race = state.race;
   const p = state.player;
   if (!race.active) {
-    // Start: roll into the pier ring with a car.
     if (p.car && dist(p.x, p.y, RACE_START.x, RACE_START.y) < 64) {
       race.active = true;
       race.idx = 0;
@@ -58,7 +56,7 @@ export function updateRace(state, dt) {
       race.active = false;
       const isBest = !race.best || race.time < race.best;
       if (isBest) race.best = race.time;
-      state.money += RACE_REWARD;
+      state.money += Math.round(RACE_REWARD * (state.diffPay || 1));
       addRespect(state, RACE_RESPECT);
       playCash(state.audio);
       state.message = 'FINISH! ' + formatRaceTime(race.time) + ' — +$' + RACE_REWARD

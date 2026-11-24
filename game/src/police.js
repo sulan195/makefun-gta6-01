@@ -1,4 +1,3 @@
-// police.js — wanted levels, pursuit cars, roadblocks and hiding.
 
 import { clamp, dist, angleDelta, range } from './util.js';
 import { V_ROADS, H_ROADS, WORLD_W, WORLD_H, nearestRoadPoint } from './world.js';
@@ -18,7 +17,6 @@ export function raiseWanted(state, amount) {
   return state.wanted;
 }
 
-// Pure: next wanted value after `seconds` hidden from every police car.
 export function wantedAfterHiding(wanted, secondsHidden) {
   if (wanted <= 0) return 0;
   return Math.max(0, wanted - Math.floor(secondsHidden / 6));
@@ -58,7 +56,7 @@ export function updatePolice(state, dt) {
     nearest = Math.min(nearest, d);
     const wantAngle = Math.atan2(p.y - pc.y, p.x - pc.x);
     pc.angle += clamp(angleDelta(pc.angle, wantAngle), -2.6 * dt, 2.6 * dt);
-    const target = (p.onFoot && d < 55) ? 0 : (d > 60 ? POLICE_MAX_SPEED : 120);
+    const target = (p.onFoot && d < 55) ? 0 : (d > 60 ? POLICE_MAX_SPEED * (state.diffCop || 1) : 120);
     if (pc.speed < target) pc.speed += 300 * dt;
     else pc.speed -= 200 * dt;
     pc.x += Math.cos(pc.angle) * pc.speed * dt;
@@ -86,8 +84,6 @@ export function updatePolice(state, dt) {
     p.bustedTimer = Math.max(0, p.bustedTimer - dt);
   }
 
-  // Wanted decay: hidden from every police car for a while, stars fall
-  // off. Under the CONDOR searchlight the hiding clock runs far slower.
   if (state.wanted > 0) {
     if (nearest > 700) {
       state.wantedTimer += dt * heliDecayFactor(state);
@@ -104,12 +100,6 @@ export function updatePolice(state, dt) {
     }
   }
 }
-
-// roadblocks
-// At three stars the police stop chasing only: they park two cars across
-// the road ahead of Mara and drop striped barriers between them. The unit
-// is stored apart from the patrol list so the chase maths never moves it;
-// it despawns cleanly when she gets far away, the heat cools, or it ages.
 
 export function shouldSpawnRoadblock(state) {
   return state.wanted >= 3 && !state.roadblock
@@ -176,7 +166,6 @@ export function updateRoadblock(state, dt) {
   }
 }
 
-// Barriers are solid: circles (Mara, her car) are pushed out of them.
 export function collideBarriers(state, e, r) {
   let hit = false;
   for (const b of state.barriers || []) {

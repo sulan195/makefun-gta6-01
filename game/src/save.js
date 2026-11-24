@@ -1,6 +1,6 @@
-// save.js — localStorage save/load with corrupt-save hardening.
 
 export const SAVE_KEY = 'solmar-city-save-v1';
+const keyFor = (slot) => (slot ? SAVE_KEY + '-' + slot : SAVE_KEY);
 
 export function serializeSave(state) {
   return {
@@ -24,14 +24,16 @@ export function serializeSave(state) {
       }
       : null,
     raceBest: state.race ? Math.round((state.race.best || 0) * 10) / 10 : 0,
+    difficulty: state.difficulty ?? 1,
+    custom: state.custom || null,
     savedAt: new Date().toISOString(),
   };
 }
 
-export function saveGame(state) {
+export function saveGame(state, slot) {
   try {
     const data = serializeSave(state);
-    window.localStorage.setItem(SAVE_KEY, JSON.stringify(data));
+    window.localStorage.setItem(keyFor(slot ?? state.slot), JSON.stringify(data));
     return true;
   } catch (e) {
     return false;
@@ -49,19 +51,23 @@ function cleanWeapons(w) {
     && ['smg', 'shotgun'].every((k) => numOr(a[k], -1) >= 0);
   return ok ? w : { owned: ['fist'], current: 'fist', ammo: { smg: 0, shotgun: 0 } };
 }
-export function loadSave() {
+export function loadSave(slot) {
   try {
-    const raw = window.localStorage.getItem(SAVE_KEY);
+    const raw = window.localStorage.getItem(keyFor(slot));
     if (!raw) return null;
     const data = JSON.parse(raw);
     if (!data || data.version !== 1) return null;
-    // Core values reject; rest sanitised.
     if (numOr(data.money, -1) < 0 || !intIn(data.missionIndex, 8)) return null;
     for (const k of ['respect', 'raceBest']) data[k] = Math.max(0, numOr(data[k], 0));
     for (const [k, d] of [['playerX', 0], ['playerY', 0], ['clockMinutes', 1000]]) data[k] = numOr(data[k], d);
     data.health = Math.min(100, Math.max(1, numOr(data.health, 100)));
     if (!Array.isArray(data.missionsDone) || data.missionsDone.some((v) => !['string', 'boolean'].includes(typeof v)))
       data.missionsDone = [...Array(8)].map((_, i) => i < data.missionIndex);
+    data.difficulty = intIn(data.difficulty, 2) ? data.difficulty : 1;
+    const cu = data.custom;
+    const HEX = /^#[0-9a-f]{6}$/i;
+    data.custom = cu && HEX.test(cu.skin || '') && HEX.test(cu.hair || '') && intIn(cu.style, 2)
+      ? { skin: cu.skin, hair: cu.hair, style: cu.style } : null;
     const g = data.garage || {};
     data.garage = intIn(g.engine, 3) && intIn(g.armor, 3) ? g : { engine: 0, armor: 0 };
     data.weapons = cleanWeapons(data.weapons);
@@ -71,10 +77,15 @@ export function loadSave() {
   }
 }
 
-export function hasSave() {
-  return loadSave() !== null;
+export function hasSave(slot) {
+  return loadSave(slot) !== null;
+}
+
+export function slotSummary(slot) {
+  const s = loadSave(slot);
+  return s ? { money: s.money, respect: s.respect, missionIndex: s.missionIndex } : null;
 }
 
 export function clearSave() {
-  try { window.localStorage.removeItem(SAVE_KEY); } catch (e) { /* ignore */ }
+  try { window.localStorage.removeItem(keyFor(0)); } catch (e) { /* ignore */ }
 }

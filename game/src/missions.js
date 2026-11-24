@@ -1,4 +1,3 @@
-// missions.js — Mara's story: eight missions for Dax, plus taxi fares.
 
 import { dist } from './util.js';
 import { makeCar } from './cars.js';
@@ -142,7 +141,6 @@ export function missionTargetPos(state) {
   return state.world.places[step.target];
 }
 
-// Place a mission target car (and its guards) at a named place.
 function placeTargetCar(state, placeKey, color, guards) {
   const spot = state.world.places[placeKey];
   const car = makeCar(spot.x + 30, spot.y + 10, 0, {
@@ -158,9 +156,6 @@ function placeTargetCar(state, placeKey, color, guards) {
   }
 }
 
-// Called when a mission starts: place its props (target car, rivals).
-// A mission whose Respect requirement is not met yet waits instead —
-// updateMissions activates it the moment Mara qualifies.
 export function startMission(state, index) {
   const ms = state.missions;
   ms.index = index;
@@ -218,7 +213,7 @@ function advanceStep(state) {
 
 export function completeMission(state, def) {
   const ms = state.missions;
-  state.money += def.reward;
+  state.money += Math.round(def.reward * (state.diffPay || 1));
   if (def.clearWantedOnComplete) {
     state.wanted = 0;
     state.wantedTimer = 0;
@@ -258,7 +253,6 @@ export function startFare(state) {
   state.message = 'A new passenger at ' + from.name + ' — pick them up!';
 }
 
-// One tick of the mission state machine. Pure-ish: mutates state, no drawing.
 export function updateMissions(state, dt) {
   const ms = state.missions;
   const p = state.player;
@@ -283,7 +277,7 @@ export function updateMissions(state, dt) {
         playPickup(state.audio);
       }
     } else if (dist(p.x, p.y, dest.x, dest.y) < 80) {
-      state.money += ms.fare.reward;
+      state.money += Math.round(ms.fare.reward * (state.diffPay || 1));
       addRespect(state, 2);
       playCash(state.audio);
       state.message = 'Fare complete! +$' + ms.fare.reward;
@@ -358,8 +352,6 @@ export function updateMissions(state, dt) {
   }
 }
 
-// Enemies: chase the player when close, shoot with poor aim. All dice
-// roll on the seeded state RNG so staged scenes stay deterministic.
 export function updateEnemies(state, dt) {
   const p = state.player;
   const rng = state.rng;

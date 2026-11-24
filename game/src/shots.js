@@ -1,4 +1,3 @@
-// shots.js — deterministic staged scenes for the screenshots (?shot=, ?seed=).
 
 import { makeCar } from './cars.js';
 import { createHelicopter } from './helicopter.js';
@@ -23,11 +22,10 @@ function putPlayerInCar(state, x, y, angle, speed, color) {
 }
 
 export function applyShot(state, shot) {
+  state.quality = 'high';
   const p = state.player;
   if (shot === 'start') {
-    // Title screen over the shore at golden hour (render.js flies the
-    // cinematic camera while mode is 'title').
-    state.clockMinutes = 17 * 60 + 50;
+    state.clockMinutes = 10 * 60 + 20;
     return;
   }
   state.mode = 'play';
@@ -36,20 +34,18 @@ export function applyShot(state, shot) {
   state.messageUntil = 0;
 
   if (shot === 'drive') {
-    state.clockMinutes = 17 * 60 + 45;
+    state.clockMinutes = 10 * 60 + 45;
     putPlayerInCar(state, 1700, 1680, 0, 200, '#c23b2e');
-    // Mission 1, step 2: the passenger is aboard, heading for the Marina.
     state.missions.step = 1;
     state.missions.passenger = true;
     state.autoDrive = true;
-    // Staged coast life: traffic ahead and strollers on the boardwalk.
     const tc = (x, y, a, dir) => makeCar(x, y, a, { kind: 'traffic', driver: true, rng: state.rng, roadAxis: 'h', roadIndex: 5, dir, speed: 120 });
     state.cars.push(tc(2060, 1698, 0, 1), tc(2380, 1662, Math.PI, -1));
     [[2280, 1742], [2410, 1736], [2190, 1744]].forEach(([x, y], i) => {
       state.peds.push({ x, y, angle: i % 2 ? Math.PI : 0, speed: 34, shirt: ['#e07840', '#4d7dc9', '#f0e8d8'][i], flee: 0, down: false, downTimer: 0, axis: 'h', roadPos: y, walkPhase: i * 2, variant: i % 3, scale: [0.95, 1.06, 1.0][i] });
     });
   } else if (shot === 'chase') {
-    state.clockMinutes = 18 * 60;
+    state.clockMinutes = 11 * 60 + 10;
     state.money = 2450;
     state.respect = 100;
     state.wanted = 5;
@@ -57,7 +53,6 @@ export function applyShot(state, shot) {
     state.weapons.ammo.smg = 48;
     state.weapons.current = 'smg';
     putPlayerInCar(state, 1000, 840, 0, 230, '#2e6fc2');
-    // Mission 8, final step: the getaway to Udin's Garage.
     state.missions.index = 7;
     state.missions.step = 2;
     state.missions.active = true;
@@ -76,7 +71,7 @@ export function applyShot(state, shot) {
     state.heli.lightY = p.y;
     state.autoDrive = true;
   } else if (shot === 'mission') {
-    state.clockMinutes = 17 * 60 + 30;
+    state.clockMinutes = 10 * 60 + 35;
     state.money = 750;
     state.respect = 30;
     state.weapons.owned = ['fist', 'pistol', 'smg'];

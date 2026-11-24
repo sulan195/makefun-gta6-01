@@ -1,15 +1,18 @@
-// audio.js — synthesized engine, radio and effect sounds. No audio files.
 
 export function createAudio() {
   return {
     ctx: null, master: null, engineOsc: null, engineGain: null,
     sirenOsc: null, sirenGain: null, musicTimer: 0, musicStep: 0,
     radioTimer: 0, radioStep: 0,
-    enabled: false, sirenOn: false,
+    enabled: false, sirenOn: false, volume: 0.8,
   };
 }
 
-// Call from a user gesture (key/click). Safe to call repeatedly.
+export function setVolume(audio, v) {
+  audio.volume = Math.min(1, Math.max(0, v));
+  if (audio.master) audio.master.gain.value = 0.45 * audio.volume;
+}
+
 export function unlockAudio(audio) {
   if (audio.enabled) return;
   try {
@@ -18,9 +21,8 @@ export function unlockAudio(audio) {
     const ctx = new AC();
     audio.ctx = ctx;
     audio.master = ctx.createGain();
-    audio.master.gain.value = 0.35;
+    audio.master.gain.value = 0.45 * (audio.volume ?? 0.8);
     audio.master.connect(ctx.destination);
-    // Engine: a low sawtooth whose pitch follows speed.
     audio.engineOsc = ctx.createOscillator();
     audio.engineOsc.type = 'sawtooth';
     audio.engineOsc.frequency.value = 55;
@@ -33,7 +35,6 @@ export function unlockAudio(audio) {
     engineFilter.connect(audio.engineGain);
     audio.engineGain.connect(audio.master);
     audio.engineOsc.start();
-    // Siren: a triangle that wails between two notes.
     audio.sirenOsc = ctx.createOscillator();
     audio.sirenOsc.type = 'triangle';
     audio.sirenOsc.frequency.value = 720;
@@ -98,14 +99,11 @@ export function playCash(audio) {
 }
 export function playBusted(audio) { blip(audio, 220, 0.5, 'sawtooth', 0.2, 110); }
 
-// Car radio: two fully synthesised stations, cycled with R while driving.
-// 1 = SOLMAR FM (slow sunset chords), 2 = BAY ROCK (driving bass + sparkle).
 export const RADIO_STATIONS = ['Radio off', 'SOLMAR FM', 'BAY ROCK'];
 
 function updateRadio(audio, dt, station) {
   audio.radioTimer += dt;
   if (station === 1) {
-    // One warm chord every two seconds: root + fifth, very soft.
     if (audio.radioTimer >= 2) {
       audio.radioTimer -= 2;
       const roots = [220, 174.6, 196, 164.8];
@@ -116,7 +114,6 @@ function updateRadio(audio, dt, station) {
       audio.radioStep++;
     }
   } else if (station === 2) {
-    // Eighth-note bass drive with a sparkle note on the off-beats.
     if (audio.radioTimer >= 0.24) {
       audio.radioTimer -= 0.24;
       const bass = [110, 110, 130.8, 110, 98, 98, 146.8, 164.8];
@@ -128,7 +125,6 @@ function updateRadio(audio, dt, station) {
   }
 }
 
-// Per-frame: engine pitch from speed, siren wail while wanted > 0, music.
 export function updateAudio(audio, dt, speed, wanted, radioStation = 0) {
   if (!audio.enabled || !audio.ctx) return;
   try {
@@ -145,7 +141,6 @@ export function updateAudio(audio, dt, speed, wanted, radioStation = 0) {
           660 + 260 * Math.sin(t * 4.4), t, 0.05);
       }
     }
-    // Quiet bassline: one soft note every half second, A minor walk.
     audio.musicTimer += dt;
     if (audio.musicTimer >= 0.5) {
       audio.musicTimer -= 0.5;
