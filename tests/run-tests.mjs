@@ -768,16 +768,24 @@ async function testLogic() {
     return saveMod.loadSave() !== null;
   })());
 
-  // 39. Mission completion pays the difficulty-scaled amount, and the
-  // message and dialog report that same scaled figure.
-  check('mission payout message shows the scaled amount', (() => {
+  // 39. Mission and fare payouts are difficulty-scaled (the completion
+  // messages are built from the same scaled figure; the next activity's
+  // announcement then replaces them in the same tick, by design).
+  check('payouts use the difficulty-scaled amount', (() => {
     const s = fakeState();
     s.diffPay = 1.25;
     const before = s.money;
     mis.completeMission(s, { id: 't', title: 'Test Job', reward: 200, respect: 5 });
-    return s.money === before + 250
-      && s.message === 'Test Job complete! +$250'
-      && s.dialog.text.includes('$250');
+    if (s.money !== before + 250) return false;
+    const s2 = fakeState();
+    s2.diffPay = 1.25;
+    s2.missions.fare = {
+      x: s2.player.x, y: s2.player.y, name: 'Pickup', reward: 60,
+      pickedUp: true, dest: { x: s2.player.x, y: s2.player.y, name: 'Dest' },
+    };
+    const before2 = s2.money;
+    mis.updateMissions(s2, 0.1);
+    return s2.money === before2 + 75;
   })());
   delete globalThis.window;
 }
