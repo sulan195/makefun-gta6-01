@@ -117,8 +117,10 @@ export function buildWorld(seed) {
     }
   }
 
+  const keptTrees = trees.filter((t) => !buildings.some((b) => t.x > b.x - 6 && t.x < b.x + b.w + 6 && t.y > b.y - 6 && t.y < b.y + b.h + 6));
+
   return {
-    seed, buildings, trees, parkedSpots, lights, districts,
+    seed, buildings, trees: keptTrees, parkedSpots, lights, districts,
     places: {
       taxiStand: { x: 520, y: 520, name: 'Taxi stand, Old Town' },
       marina: { x: 2360, y: 200, name: 'Marina West pier' },
