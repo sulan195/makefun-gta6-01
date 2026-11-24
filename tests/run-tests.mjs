@@ -225,7 +225,7 @@ async function testHeadless() {
     const status = await page.evaluate(() => document.getElementById('status')?.textContent || '');
     const glLive = await page.evaluate(() => window.__solmarGL === true);
     check(shot.name + ' page loads (status div ready)',
-      ready && status.startsWith('Solmar City ready') && !status.includes('ERROR'), status.slice(0, 120));
+      ready && status.startsWith('SOLMAR HEAT ready') && !status.includes('ERROR'), status.slice(0, 120));
     check(shot.name + ' has a live WebGL2 context', glLive === true);
     check(shot.name + ' has no uncaught JS error', errors.length === 0, errors.join(' | ').slice(0, 200));
     await page.close();
