@@ -44,6 +44,7 @@ export function spawnPeds(world, rng, count) {
       shirt: pick(rng, PED_SHIRTS), walking: true, flee: 0,
       down: false, downTimer: 0, axis: vertical ? 'v' : 'h',
       roadPos: vertical ? x : y, walkPhase: rng() * 6,
+      variant: Math.floor(rng() * 3), scale: 0.93 + rng() * 0.14,
     });
   }
   return peds;

@@ -6,14 +6,13 @@ const GLASS = rgb('#18242f');
 const TYRE = rgb('#101215');
 const TRIM = rgb('#24272b');
 
-function wheels(b, tint) {
+function wheels(b) {
   for (const sx of [15, -15]) {
     for (const sz of [11, -11]) {
       b.box(sx, 5, sz, 11, 10, 3.6, TYRE);
       b.box(sx, 5, sz * 1.16, 5.5, 5.5, 0.8, shade('#9aa2ab', 1));
     }
   }
-  void tint;
 }
 
 // A city car: tintable body and hood (kind 6), glass cabin, lights.
@@ -34,9 +33,8 @@ export function buildCarMesh() {
   return b;
 }
 
-// The police interceptor: white body, a bold blue band on both flanks and
-// the hood, a push bar, and the red/blue light bar (kinds 4 and 5 blink in
-// the shader). It must read as POLICE in a single still frame.
+// The police interceptor: blue flank bands, push bar, and the red/blue
+// light bar (kinds 4/5 blink). Must read as POLICE in a single frame.
 export function buildPoliceMesh() {
   const b = new Builder();
   const white = rgb('#eef1f4');
@@ -62,13 +60,14 @@ export function buildPoliceMesh() {
 }
 
 // A person, 26 units tall, origin at the feet, facing +X. The torso and
-// arms are tintable (kind 6 = shirt/jacket); legs, head and hair are baked.
-// Parts: 1/2 legs, 3/4 arms — the vertex shader swings them while walking.
-export function buildPersonMesh() {
+// arms are tintable (kind 6 = shirt/jacket). Parts: 1/2 legs, 3/4 arms —
+// the vertex shader swings them while walking. Three variants (pants,
+// skin, hair/cap) keep the crowd from looking cloned.
+export function buildPersonMesh(variant = 0) {
   const b = new Builder();
-  const pants = rgb('#2e3440');
-  const skin = rgb('#d9a066');
-  const hair = rgb('#241a12');
+  const pants = rgb(['#2e3440', '#5a4632', '#31435c'][variant]);
+  const skin = rgb(['#d9a066', '#a06844', '#f0c8a0'][variant]);
+  const hair = rgb(['#241a12', '#241a12', '#6b4a2f'][variant]);
   const shoe = rgb('#191c1f');
   const white = [1, 1, 1];
   b.box(0, 4.75, -3.4, 5.5, 9.5, 5.2, pants, { part: 1 });
@@ -79,14 +78,23 @@ export function buildPersonMesh() {
   b.box(0, 13.9, -8.6, 4.6, 9, 4.6, white, { kind: 6, part: 3 });
   b.box(0, 13.9, 8.6, 4.6, 9, 4.6, white, { kind: 6, part: 4 });
   b.box(0, 22.6, 0, 7.6, 6.8, 7.6, skin);
-  b.box(-0.3, 26.4, 0, 8.2, 1.8, 8.2, hair);
-  b.box(-3.9, 24.2, 0, 1.4, 5.5, 7.6, hair);
+  if (variant === 1) {
+    const cap = rgb('#c23b2e'); // a baseball cap instead of hair
+    b.box(-0.2, 26.3, 0, 8.4, 1.9, 8.4, cap);
+    b.box(4.6, 25.8, 0, 4.6, 0.8, 7.4, cap);
+    b.box(-3.9, 24.6, 0, 1.2, 3.4, 7.6, hair);
+  } else if (variant === 2) {
+    b.box(-0.3, 26.4, 0, 8.2, 1.8, 8.2, hair);
+    b.box(-3.8, 22.6, 0, 1.6, 10.5, 7.8, hair); // long hair down the back
+  } else {
+    b.box(-0.3, 26.4, 0, 8.2, 1.8, 8.2, hair);
+    b.box(-3.9, 24.2, 0, 1.4, 5.5, 7.6, hair);
+  }
   return b;
 }
 
-// CONDOR, the police helicopter: dark blue body, white roof, blue band,
-// glass nose, tail boom and fin. The main rotor is a separate mesh so it
-// can spin. Origin at the body centre; skids hang below.
+// CONDOR, the police helicopter. The main rotor is a separate mesh so
+// it can spin. Origin at the body centre; skids hang below.
 export function buildHeliMesh() {
   const b = new Builder();
   const body = rgb('#22384f');
