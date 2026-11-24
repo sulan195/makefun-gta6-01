@@ -94,15 +94,15 @@ export const MISSION_DEFS = [
 
 export function createMissionState() {
   return {
-    index: 0, // index into MISSION_DEFS; >= length means free roam
+    index: 0,
     step: 0,
-    active: false, // a mission's props are placed and its steps are live
-    waiting: false, // gated behind a Respect requirement
+    active: false,
+    waiting: false,
     passenger: false,
     hasPackage: false,
     targetCar: null,
     escapeTimer: 0,
-    fare: null, // repeatable taxi fare in free roam
+    fare: null,
     fareTimer: 0,
   };
 }

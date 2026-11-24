@@ -19,8 +19,8 @@ export function makeCar(x, y, angle, opts = {}) {
   return {
     x, y, angle, speed: opts.speed || 0,
     color: opts.color || pick(rng, CAR_COLORS),
-    kind: opts.kind || 'traffic', // traffic | parked | player | police | wreck
-    vtype: opts.vtype || 'car', // car | truck | moto
+    kind: opts.kind || 'traffic',
+    vtype: opts.vtype || 'car',
     driver: opts.driver !== undefined ? opts.driver : true,
     hp: 100, braking: false, smoke: 0,
     burning: 0, exploded: false, warnedLow: false,

@@ -2,18 +2,12 @@
 export function createInput() {
   return {
     up: false, down: false, left: false, right: false,
-    action: false, // E — enter / exit car (and orbit-right when held idly)
-    punch: false,  // F — melee
-    shoot: false,  // Space or mouse click — fire the current weapon
-    pause: false,  // P or Escape
-    confirm: false, // Enter — start screen / menus
-    garage: false, // G — Udin's Garage menu
-    radio: false,  // R — car radio station
-    camLeft: false, // Q — orbit the camera left
+    action: false, punch: false, shoot: false, pause: false,
+    confirm: false, garage: false, radio: false, camLeft: false,
     slot1: false, slot2: false, slot3: false, slot4: false, slot5: false,
     mouseX: 0, mouseY: 0, mouseDown: false,
-    dragDX: 0, dragDY: 0, // mouse-drag deltas since last frame (camera orbit)
-    pressed: new Set(), // keys pressed since last consume
+    dragDX: 0, dragDY: 0,
+    pressed: new Set(),
   };
 }
 

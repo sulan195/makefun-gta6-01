@@ -19,7 +19,7 @@ import {
 import { createRaceState, updateRace } from './races.js';
 import { createGarageState, garageAction, nearGarage } from './garage.js';
 import { createAudio, unlockAudio, updateAudio, setVolume, RADIO_STATIONS } from './audio.js';
-import { loadSave, saveGame, hasSave, slotSummary } from './save.js';
+import { loadSave, saveGame, slotSummary } from './save.js';
 import { updateParticles, updateBurning } from './effects.js';
 import { createRenderer, drawScene, rebuildPlayer } from './render.js';
 import { createHud, updateHud } from './hud.js';

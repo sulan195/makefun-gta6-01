@@ -59,14 +59,14 @@ export function applyShot(state, shot) {
     state.missions.hasPackage = true;
     const cop = (x, y, a) => makeCar(x, y, a,
       { kind: 'police', driver: true, rng: state.rng });
-    state.police.push(cop(1052, 786, 0)); // alongside, in frame
-    state.police.push(cop(758, 796, 0.06)); // in pursuit behind
+    state.police.push(cop(1052, 786, 0));
+    state.police.push(cop(758, 796, 0.06));
     state.police.push(cop(736, 884, -0.06));
     spawnRoadblock(state);
     state.heli = createHelicopter(state);
     state.heli.x = 1255;
     state.heli.y = 755;
-    state.heli.alt = 52; // fly it low so the CONDOR stays in frame
+    state.heli.alt = 52;
     state.heli.lightX = p.x;
     state.heli.lightY = p.y;
     state.autoDrive = true;
@@ -77,7 +77,7 @@ export function applyShot(state, shot) {
     state.weapons.owned = ['fist', 'pistol', 'smg'];
     state.weapons.ammo.smg = 60;
     state.weapons.current = 'smg';
-    startMission(state, 3); // Mission 4 — Payback: target car + 2 guards
+    startMission(state, 3);
     p.x = 1075;
     p.y = 1468;
     p.angle = Math.atan2(1490 - 1468, 1190 - 1075);

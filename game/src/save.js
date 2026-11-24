@@ -26,7 +26,6 @@ export function serializeSave(state) {
     raceBest: state.race ? Math.round((state.race.best || 0) * 10) / 10 : 0,
     difficulty: state.difficulty ?? 1,
     custom: state.custom || null,
-    savedAt: new Date().toISOString(),
   };
 }
 
@@ -77,15 +76,7 @@ export function loadSave(slot) {
   }
 }
 
-export function hasSave(slot) {
-  return loadSave(slot) !== null;
-}
-
 export function slotSummary(slot) {
   const s = loadSave(slot);
   return s ? { money: s.money, respect: s.respect, missionIndex: s.missionIndex } : null;
-}
-
-export function clearSave() {
-  try { window.localStorage.removeItem(keyFor(0)); } catch (e) { /* ignore */ }
 }

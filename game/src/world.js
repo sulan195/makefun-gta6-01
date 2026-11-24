@@ -68,7 +68,7 @@ export function buildWorld(seed) {
       const ch = (y1 - y0) / rows;
       for (let i = 0; i < cols; i++) {
         for (let j = 0; j < rows; j++) {
-          if (rng() < 0.12) continue; // empty lot with a tree or two
+          if (rng() < 0.12) continue;
           const bx = x0 + i * cw + 8;
           const by = y0 + j * ch + 8;
           const bw = cw - 16 - rng() * 20;

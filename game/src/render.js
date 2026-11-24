@@ -114,8 +114,8 @@ export function createRenderer(canvas, world) {
     diamond: new Mesh(gl, buildDiamondMesh()),
     cone: new MeshA(gl, coneBuilder),
     disc: new MeshA(gl, discBuilder),
-    dyn: new MeshA(gl, null, true), // blob shadows, scorch marks, pillars
-    lines: new MeshA(gl, null, true), // tracers
+    dyn: new MeshA(gl, null, true),
+    lines: new MeshA(gl, null, true),
     ptsAdd: new Points(gl, 2048),
     ptsNorm: new Points(gl, 2048),
     cityCounts: { ground: city.ground.counts(), props: city.props.counts() },
@@ -348,8 +348,8 @@ export function drawScene(R, state) {
     const dst = [h.lightX, 0, h.lightY];
     const dir = [dst[0] - src[0], dst[1] - src[1], dst[2] - src[2]];
     const len = Math.hypot(dir[0], dir[1], dir[2]) || 1;
-    const ya = [-dir[0], -dir[1], -dir[2]]; // local +Y maps from target to source
-    let xa = [ya[1], -ya[0], 0]; // cross(ya, [0,0,1])
+    const ya = [-dir[0], -dir[1], -dir[2]];
+    let xa = [ya[1], -ya[0], 0];
     let xl = Math.hypot(xa[0], xa[1], xa[2]);
     if (xl < 0.001) { xa = [1, 0, 0]; xl = 1; }
     const rad = 48;

@@ -49,7 +49,7 @@ export function buildCity(world) {
     const a = (i % 6) * (Math.PI / 3) + (hashSeed('sky' + i) % 100) / 100 * 0.34 - 0.17;
     const rad = 2700 + (hashSeed('skyr' + i) % 500);
     const x = 1280 + Math.cos(a) * rad, z = 1000 + Math.sin(a) * rad;
-    if (z > 1750 && z < 3050 && x > -350 && x < 2900) continue; // the bay
+    if (z > 1750 && z < 3050 && x > -350 && x < 2900) continue;
     const hh = 55 + (hashSeed('skyh' + i) % 95);
     ground.box(x, hh / 2 - 2, z, 80 + (hashSeed('skyw' + i) % 70), hh,
       80, rgb('#55677e'));
@@ -176,7 +176,7 @@ export function buildCity(world) {
   props.cyl(788, 9, 1428, 0.5, 0.65, 18, 6, rgb('#22262a'));
   props.box(788, 17.5, 1428, 3, 9, 26, rgb('#1248c0'), { kind: 3 });
   props.box(788, 17.5, 1428, 3.4, 2.2, 26, rgb('#ffd34d'), { kind: 3 });
-  props.spanel(790, 13.5, 1428, 24, 8, -Math.PI / 2, 2); // UDIN'S GARAGE
+  props.spanel(790, 13.5, 1428, 24, 8, -Math.PI / 2, 2);
 
   const crane = rgb('#c85a20');
   for (const [cx, cz] of [[2295, 1600], [1887, 1596]]) {
@@ -238,14 +238,14 @@ export function buildCity(world) {
 
 export function sunForClock(minutes) {
   const t = ((minutes % 1440) + 1440) % 1440;
-  const day = (t - 360) / (1140 - 360); // 06:00 -> 0, 19:00 -> 1
+  const day = (t - 360) / (1140 - 360);
   const ang = Math.PI * (0.08 + 0.84 * Math.min(1, Math.max(0, day)));
   const elev = Math.sin(ang) * 0.95 + 0.04;
-  const azim = Math.cos(ang); // +x (east) in the morning, -x (west) by dusk
+  const azim = Math.cos(ang);
   const dir = [azim * 0.82, Math.max(elev, 0.03), 0.42];
   const l = Math.hypot(dir[0], dir[1], dir[2]);
   const sunDir = [dir[0] / l, dir[1] / l, dir[2] / l];
-  const warmth = 1 - Math.min(1, Math.max(0, elev) * 1.6); // 1 at horizon
+  const warmth = 1 - Math.min(1, Math.max(0, elev) * 1.6);
   const night = t < 330 || t > 1170;
   if (night) {
     return {

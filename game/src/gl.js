@@ -1,8 +1,4 @@
 
-export function m4ident() {
-  return new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
-}
-
 export function m4persp(fovy, aspect, near, far) {
   const f = 1 / Math.tan(fovy / 2);
   const nf = 1 / (near - far);
@@ -134,22 +130,6 @@ export class Builder {
     }
   }
 
-  panel(x, y, z, w, h, a, color, opt = {}) {
-    const kind = opt.kind || 0;
-    const dx = Math.cos(a) * w / 2, dz = Math.sin(a) * w / 2;
-    const nx = -Math.sin(a), nz = Math.cos(a);
-    const a1 = this.vert(x - dx, y, z - dz, nx, 0, nz, color, kind);
-    const a2 = this.vert(x + dx, y, z + dz, nx, 0, nz, color, kind);
-    const a3 = this.vert(x + dx, y + h, z + dz, nx, 0, nz, color, kind);
-    const a4 = this.vert(x - dx, y + h, z - dz, nx, 0, nz, color, kind);
-    this.quad(a1, a2, a3, a4);
-    const b1 = this.vert(x - dx, y, z - dz, -nx, 0, -nz, color, kind);
-    const b2 = this.vert(x + dx, y, z + dz, -nx, 0, -nz, color, kind);
-    const b3 = this.vert(x + dx, y + h, z + dz, -nx, 0, -nz, color, kind);
-    const b4 = this.vert(x - dx, y + h, z - dz, -nx, 0, -nz, color, kind);
-    this.quad(b2, b1, b4, b3);
-  }
-
   spanel(x, y, z, w, h, a, i) {
     const [u0, v0, u1, v1] = signUV(i);
     const c = [1, 1, 1];
@@ -160,10 +140,11 @@ export class Builder {
     const a3 = this.vert(x + dx, y + h, z + dz, nx, 0, nz, c, 7, 0, u1, v1);
     const a4 = this.vert(x - dx, y + h, z - dz, nx, 0, nz, c, 7, 0, u0, v1);
     this.quad(a1, a2, a3, a4);
-    const b1 = this.vert(x - dx, y, z - dz, -nx, 0, -nz, c, 7, 0, u1, v0);
-    const b2 = this.vert(x + dx, y, z + dz, -nx, 0, -nz, c, 7, 0, u0, v0);
-    const b3 = this.vert(x + dx, y + h, z + dz, -nx, 0, -nz, c, 7, 0, u0, v1);
-    const b4 = this.vert(x - dx, y + h, z - dz, -nx, 0, -nz, c, 7, 0, u1, v1);
+    const ox = -nx * 0.09, oz = -nz * 0.09;
+    const b1 = this.vert(x - dx + ox, y, z - dz + oz, -nx, 0, -nz, c, 7, 0, u1, v0);
+    const b2 = this.vert(x + dx + ox, y, z + dz + oz, -nx, 0, -nz, c, 7, 0, u0, v0);
+    const b3 = this.vert(x + dx + ox, y + h, z + dz + oz, -nx, 0, -nz, c, 7, 0, u0, v1);
+    const b4 = this.vert(x - dx + ox, y + h, z - dz + oz, -nx, 0, -nz, c, 7, 0, u1, v1);
     this.quad(b2, b1, b4, b3);
   }
 
@@ -336,7 +317,7 @@ void main() {
   }
   vec4 wp = uModel * vec4(pos, 1.0);
   if (aKind > 1.5 && aKind < 2.5) {
-    wp.y += sin(uTime * 1.4 + wp.x * 0.045 + wp.z * 0.06) * 0.5;
+    wp.y += sin(uTime * 1.4 + wp.x * 0.045 + wp.z * 0.06) * 0.12;
   }
   vWorld = wp.xyz;
   vNor = uNorm * nor;
@@ -376,6 +357,11 @@ void main() {
     if (win) {
       col *= 0.5;
       if (h > 0.6) col += vec3(1.0, 0.72, 0.38) * 0.9;
+    }
+    if (uvw.y < 3.5) {
+      col *= 0.52;
+      if (uvw.y > 3.05) col *= 1.45;
+      else if (f.x > 0.34 && f.x < 0.66 && uvw.y > 0.35) col *= 0.5;
     }
   }
   if (kind > 1.5 && kind < 2.5) {

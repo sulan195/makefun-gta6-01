@@ -86,7 +86,7 @@ export function updatePeds(state, dt) {
         ped.x += Math.cos(ped.angle) * step;
         if (ped.x < 130 || ped.x > WORLD_W - 130) ped.angle += Math.PI;
       }
-      if (rng() < 0.002) ped.angle += Math.PI; // change direction
+      if (rng() < 0.002) ped.angle += Math.PI;
       ped.walkPhase += dt * 6;
     }
     const car = playerCar;
