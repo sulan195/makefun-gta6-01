@@ -1,6 +1,6 @@
 
 import { Builder, rgb, shade } from './gl.js';
-import { hashSeed, makeRng } from './util.js';
+import { hashSeed } from './util.js';
 import { WORLD_W, WORLD_H, V_ROADS, H_ROADS, ROAD_W } from './world.js';
 
 const ASPHALT = rgb('#33373d');
@@ -275,5 +275,3 @@ export function sunForClock(minutes) {
     fogDen: 0.00030,
   };
 }
-
-export { makeRng };
