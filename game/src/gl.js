@@ -54,8 +54,7 @@ export function m4compose(x, y, z, ry, s) {
   ]);
 }
 
-// Basis matrix: local axes (xa, ya, za) and origin — for the searchlight
-// cone, whose local -Y must aim from the helicopter at the ground pool.
+// Basis matrix from local axes + origin (the searchlight cone).
 export function m4basis(xa, ya, za, ox, oy, oz) {
   return new Float32Array([
     xa[0], xa[1], xa[2], 0,
@@ -86,21 +85,32 @@ export function shade(hex, f) {
   return [Math.min(1, c[0] * f), Math.min(1, c[1] * f), Math.min(1, c[2] * f)];
 }
 
+// The sign atlas: 8 cells in a 4x2 grid (render.js paints the words).
+// Returns [u0, v0, u1, v1] for cell i, v measured from the bottom.
+export function signUV(i) {
+  const u0 = (i % 4) * 0.25;
+  const v1 = 1 - Math.floor(i / 4) * 0.5;
+  return [u0, v1 - 0.5, u0 + 0.25, v1];
+}
+
 // mesh build
 // Lit-mesh builder. kind: 0 plain, 1 building wall (windows), 2 water,
-// 3 emissive, 4/5 police light halves, 6 tintable. part: character limbs.
+// 3 emissive, 4/5 police light halves, 6 tintable, 7 sign atlas.
+// part: character limbs.
 export class Builder {
   constructor() {
     this.pos = []; this.nor = []; this.col = []; this.kind = []; this.part = [];
+    this.uv = [];
     this.idx = [];
   }
 
-  vert(x, y, z, nx, ny, nz, color, kind = 0, part = 0) {
+  vert(x, y, z, nx, ny, nz, color, kind = 0, part = 0, u = 0, v = 0) {
     this.pos.push(x, y, z);
     this.nor.push(nx, ny, nz);
     this.col.push(color[0], color[1], color[2]);
     this.kind.push(kind);
     this.part.push(part);
+    this.uv.push(u, v);
     return this.pos.length / 3 - 1;
   }
 
@@ -138,8 +148,7 @@ export class Builder {
     }
   }
 
-  // Vertical quad (a billboard panel in the XZ sense): two triangles in a
-  // plane through (x, z) facing angle a. Used for palm fronds and signs.
+  // Vertical quad through (x, z) facing angle a: a billboard panel.
   panel(x, y, z, w, h, a, color, opt = {}) {
     const kind = opt.kind || 0;
     const dx = Math.cos(a) * w / 2, dz = Math.sin(a) * w / 2;
@@ -153,6 +162,25 @@ export class Builder {
     const b2 = this.vert(x + dx, y, z + dz, -nx, 0, -nz, color, kind);
     const b3 = this.vert(x + dx, y + h, z + dz, -nx, 0, -nz, color, kind);
     const b4 = this.vert(x - dx, y + h, z - dz, -nx, 0, -nz, color, kind);
+    this.quad(b2, b1, b4, b3);
+  }
+
+  // A panel textured from cell i of the sign atlas (kind 7): both faces
+  // read correctly, so a rooftop billboard works from either side.
+  spanel(x, y, z, w, h, a, i) {
+    const [u0, v0, u1, v1] = signUV(i);
+    const c = [1, 1, 1];
+    const dx = Math.cos(a) * w / 2, dz = Math.sin(a) * w / 2;
+    const nx = -Math.sin(a), nz = Math.cos(a);
+    const a1 = this.vert(x - dx, y, z - dz, nx, 0, nz, c, 7, 0, u0, v0);
+    const a2 = this.vert(x + dx, y, z + dz, nx, 0, nz, c, 7, 0, u1, v0);
+    const a3 = this.vert(x + dx, y + h, z + dz, nx, 0, nz, c, 7, 0, u1, v1);
+    const a4 = this.vert(x - dx, y + h, z - dz, nx, 0, nz, c, 7, 0, u0, v1);
+    this.quad(a1, a2, a3, a4);
+    const b1 = this.vert(x - dx, y, z - dz, -nx, 0, -nz, c, 7, 0, u1, v0);
+    const b2 = this.vert(x + dx, y, z + dz, -nx, 0, -nz, c, 7, 0, u0, v0);
+    const b3 = this.vert(x + dx, y + h, z + dz, -nx, 0, -nz, c, 7, 0, u0, v1);
+    const b4 = this.vert(x - dx, y + h, z - dz, -nx, 0, -nz, c, 7, 0, u1, v1);
     this.quad(b2, b1, b4, b3);
   }
 
@@ -315,9 +343,11 @@ export function createProgram(gl, vsSrc, fsSrc, attribs = null) {
 // lit mesh
 export const LIT_VS = `#version 300 es
 in vec3 aPos; in vec3 aNor; in vec3 aCol; in float aKind; in float aPart;
+in vec2 aUv;
 uniform mat4 uProj, uView, uModel; uniform mat3 uNorm;
 uniform float uTime, uWalk, uWalkAmp; uniform vec3 uTint;
 out vec3 vCol; out vec3 vNor; out vec3 vWorld; out float vKind;
+out vec2 vUv;
 void main() {
   vec3 pos = aPos; vec3 nor = aNor;
   if (aPart > 0.5) {
@@ -340,19 +370,25 @@ void main() {
   vNor = uNorm * nor;
   vCol = aCol * (aKind > 5.5 && aKind < 6.5 ? uTint : vec3(1.0));
   vKind = aKind;
+  vUv = aUv;
   gl_Position = uProj * uView * wp;
 }`;
 
 export const LIT_FS = `#version 300 es
 precision highp float;
 in vec3 vCol; in vec3 vNor; in vec3 vWorld; in float vKind;
+in vec2 vUv;
 uniform vec3 uSunDir, uSunCol, uAmb, uCamPos, uFogCol;
 uniform float uFogDen, uBlink;
+uniform sampler2D uTex;
 out vec4 outColor;
 void main() {
   vec3 n = normalize(vNor);
   vec3 col = vCol;
   float kind = vKind;
+  if (kind > 6.5 && kind < 7.5) {
+    outColor = vec4(texture(uTex, vUv).rgb * 1.12, 1.0); return;
+  }
   if (kind > 2.5 && kind < 3.5) { outColor = vec4(col, 1.0); return; }
   if (kind > 3.5 && kind < 5.5) {
     float on = kind < 4.5 ? uBlink : 1.0 - uBlink;
@@ -374,7 +410,8 @@ void main() {
     n = normalize(vec3(sin(vWorld.x * 0.11 + sin(vWorld.z * 0.13) * 2.1) * 0.27, 1.0,
       cos(vWorld.z * 0.09 + sin(vWorld.x * 0.07) * 2.1) * 0.27));
     vec3 hv = normalize(normalize(uCamPos - vWorld) + uSunDir);
-    col += uSunCol * pow(max(dot(n, hv), 0.0), 70.0) * 1.5;
+    col += uSunCol * (pow(max(dot(n, hv), 0.0), 70.0) * 1.9
+      + pow(max(dot(n, hv), 0.0), 8.0) * 0.32);
   }
   float dif = max(dot(n, uSunDir), 0.0);
   vec3 lit = col * (uAmb + uSunCol * dif);
@@ -404,6 +441,7 @@ export class Mesh {
     mk(builder.col, 3, 2);
     mk(builder.kind, 1, 3);
     mk(builder.part, 1, 4);
+    mk(builder.uv, 2, 5);
     const ib = gl.createBuffer();
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ib);
     gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint32Array(builder.idx), gl.STATIC_DRAW);
@@ -558,7 +596,7 @@ void main() {
   float t = pow(max(d.y, 0.0), 0.38);
   vec3 col = mix(uHor, uZen, t);
   float s = max(dot(d, uSunDir), 0.0);
-  col += uSunCol * (pow(s, 220.0) * 1.4 + pow(s, 8.0) * 0.28);
+  col += uSunCol * (pow(s, 700.0) * 2.2 + pow(s, 220.0) * 1.4 + pow(s, 8.0) * 0.30);
   if (d.y < 0.0) col = mix(col, uHor * 0.92, min(1.0, -d.y * 3.0));
   outColor = vec4(col, 1.0);
 }`;

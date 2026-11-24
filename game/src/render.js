@@ -29,11 +29,52 @@ const MARA_TINT = rgb('#9c2b1e');
 const ENEMY_TINT = rgb('#43484f');
 const IDENT = new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
 
+// The sign atlas: eight fictional Solmar brands painted on one canvas at
+// startup; city.js picks a cell per sign via Builder.spanel (kind 7).
+const SIGN_DEFS = [
+  ['SOLMAR BANK', '#1248c0', '#ffffff'],
+  ['MARINA HOTEL', '#0b5563', '#ffe9a8'],
+  ["UDIN'S GARAGE", '#20242a', '#ffd34d'],
+  ['CAFE AZUL', '#39c2d7', '#0a2e3a'],
+  ['PIER 9 DINER', '#c23b2e', '#ffffff'],
+  ['SOLMAR MALL', '#7a4d8a', '#ffffff'],
+  ['HOTEL SOL', '#ff5f8f', '#ffffff'],
+  ['TAXI · 24H', '#e8b13c', '#22262a'],
+];
+
+function signTexture(gl) {
+  const c = document.createElement('canvas');
+  c.width = 1024; c.height = 256;
+  const g = c.getContext('2d');
+  SIGN_DEFS.forEach(([txt, bg, fg], i) => {
+    const x = (i % 4) * 256, y = Math.floor(i / 4) * 128;
+    g.fillStyle = bg; g.fillRect(x, y, 256, 128);
+    g.strokeStyle = fg; g.lineWidth = 6; g.strokeRect(x + 8, y + 8, 240, 112);
+    g.fillStyle = fg; g.textAlign = 'center'; g.textBaseline = 'middle';
+    let px = 46;
+    g.font = 'bold ' + px + 'px Arial, sans-serif';
+    const w = g.measureText(txt).width;
+    if (w > 224) {
+      px = Math.floor(px * 224 / w);
+      g.font = 'bold ' + px + 'px Arial, sans-serif';
+    }
+    g.fillText(txt, x + 128, y + 66);
+  });
+  const t = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, t);
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, c);
+  gl.generateMipmap(gl.TEXTURE_2D);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  return t;
+}
+
 export function createRenderer(canvas, world) {
   const gl = createGL(canvas);
   if (!gl) return null;
   const lit = createProgram(gl, LIT_VS, LIT_FS,
-    { aPos: 0, aNor: 1, aCol: 2, aKind: 3, aPart: 4 });
+    { aPos: 0, aNor: 1, aCol: 2, aKind: 3, aPart: 4, aUv: 5 });
   const alpha = createProgram(gl, ALPHA_VS, ALPHA_FS, { aPos: 0, aCol: 1 });
   const points = createProgram(gl, POINTS_VS, POINTS_FS, { aPos: 0, aCol: 1, aSize: 2 });
   const sky = createProgram(gl, SKY_VS, SKY_FS, { aPos: 0 });
@@ -63,7 +104,8 @@ export function createRenderer(canvas, world) {
     skyMesh: new Mesh(gl, skyBuilder),
     car: new Mesh(gl, buildCarMesh()),
     police: new Mesh(gl, buildPoliceMesh()),
-    person: new Mesh(gl, buildPersonMesh()),
+    persons: [0, 1, 2].map((v) => new Mesh(gl, buildPersonMesh(v))),
+    signTex: signTexture(gl),
     heli: new Mesh(gl, buildHeliMesh()),
     rotor: new Mesh(gl, buildHeliRotor()),
     barrier: new Mesh(gl, buildBarrierMesh()),
@@ -94,11 +136,12 @@ function setLit(R, model, tint, walk, walkAmp, blink) {
 
 const ROTZ_DOWN = new Float32Array([0, -1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
 
-function drawPerson(R, x, y, angle, tint, walkPhase, walkAmp, down) {
-  let m = m4compose(x, 0, y, -angle, 1);
-  if (down) m = m4mul(m4compose(x, 2.5, y, -angle, 1), ROTZ_DOWN);
+function drawPerson(R, x, y, angle, tint, walkPhase, walkAmp, down,
+  variant = 0, scale = 1) {
+  let m = m4compose(x, 0, y, -angle, scale);
+  if (down) m = m4mul(m4compose(x, 2.5 * scale, y, -angle, scale), ROTZ_DOWN);
   setLit(R, m, tint, walkPhase, down ? 0 : walkAmp, 0);
-  R.person.draw(R.gl);
+  R.persons[variant].draw(R.gl);
 }
 
 function drawCar(R, car) {
@@ -122,7 +165,7 @@ export function drawScene(R, state) {
   const sun = sunForClock(state.clockMinutes);
   const t = state.clockSeconds;
 
-  // --- camera -------------------------------------------------------------
+  // camera
   let eye, target;
   if (state.mode === 'title') {
     // From the north shore, looking south across the whole city to the
@@ -143,7 +186,7 @@ export function drawScene(R, state) {
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
   gl.depthFunc(gl.LEQUAL);
 
-  // --- sky ------------------------------------------------------------------
+  // sky
   gl.useProgram(R.sky.prog);
   const skyView = new Float32Array(view);
   skyView[12] = 0; skyView[13] = 0; skyView[14] = 0;
@@ -162,8 +205,11 @@ export function drawScene(R, state) {
   R.skyMesh.draw(gl);
   gl.depthMask(true);
 
-  // --- lit world --------------------------------------------------------------
+  // lit world
   gl.useProgram(R.lit.prog);
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, R.signTex);
+  gl.uniform1i(R.lit.u('uTex'), 0);
   gl.uniformMatrix4fv(R.lit.u('uProj'), false, proj);
   gl.uniformMatrix4fv(R.lit.u('uView'), false, view);
   gl.uniform3fv(R.lit.u('uSunDir'), sun.sunDir);
@@ -196,11 +242,13 @@ export function drawScene(R, state) {
   }
   for (const ped of state.peds) {
     drawPerson(R, ped.x, ped.y, ped.angle, rgb(ped.shirt),
-      ped.walkPhase, ped.flee > 0 ? 1 : 0.75, ped.down);
+      ped.walkPhase, ped.flee > 0 ? 1 : 0.75, ped.down,
+      ped.variant || 0, ped.scale || 1);
   }
   for (const e of state.enemies) {
     if (!e.alive) continue;
-    drawPerson(R, e.x, e.y, e.angle, ENEMY_TINT, e.walkPhase || 0, 0.9, false);
+    drawPerson(R, e.x, e.y, e.angle, ENEMY_TINT, e.walkPhase || 0, 0.9, false,
+      1, 1.05);
   }
   if (p.onFoot) {
     drawPerson(R, p.x, p.y, p.angle, MARA_TINT,
@@ -208,7 +256,7 @@ export function drawScene(R, state) {
   }
   if (state.heli) {
     const h = state.heli;
-    const alt = 84 + Math.sin(t * 0.7) * 3;
+    const alt = h.alt !== undefined ? h.alt : 84 + Math.sin(t * 0.7) * 3;
     setLit(R, m4compose(h.x, alt, h.y, -h.angle, 1), [1, 1, 1], 0, 0, 0);
     R.heli.draw(gl);
     setLit(R, m4compose(h.x, alt + 10.6, h.y, -(h.rotorPhase % 6.283), 1),
@@ -236,7 +284,7 @@ export function drawScene(R, state) {
     R.diamond.draw(gl);
   }
 
-  // --- sun shadows: the real prop geometry, projected flat ------------------
+  // sun shadows: the real prop geometry, projected flat
   const S = sun.sunDir;
   if (S[1] > 0.03) {
     const L = [-S[0], -S[1], -S[2]];
@@ -261,7 +309,7 @@ export function drawScene(R, state) {
     gl.disable(gl.BLEND);
   }
 
-  // --- blob shadows + scorch marks ------------------------------------------
+  // blob shadows + scorch marks
   {
     const b = new BuilderA();
     for (const s of state.scorches || []) {
@@ -289,11 +337,11 @@ export function drawScene(R, state) {
     gl.depthMask(true);
   }
 
-  // --- additive glows: searchlight, marker pillar, tracers -------------------
+  // additive glows: searchlight, marker pillar, tracers
   gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
   if (state.heli && !state.heli.leaving) {
     const h = state.heli;
-    const alt = 84 + Math.sin(t * 0.7) * 3;
+    const alt = h.alt !== undefined ? h.alt : 84 + Math.sin(t * 0.7) * 3;
     const src = [h.x, alt - 8, h.y];
     const dst = [h.lightX, 0, h.lightY];
     const dir = [dst[0] - src[0], dst[1] - src[1], dst[2] - src[2]];
@@ -344,7 +392,7 @@ export function drawScene(R, state) {
   }
   gl.disable(gl.BLEND);
 
-  // --- particles ---------------------------------------------------------------
+  // particles
   const drawPts = (cloud, list) => {
     if (!list.length) { cloud.count = 0; return; }
     const pos = new Float32Array(list.length * 3);
