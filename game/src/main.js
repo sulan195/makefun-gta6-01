@@ -236,7 +236,7 @@ function handleKeys(state) {
     return;
   }
   if (mode === 'title') {
-    const ae = document.activeElement;
+    let ae = document.activeElement;
     const dir = wasPressed(input, 'down') ? 1 : wasPressed(input, 'up') ? -1 : 0;
     if (dir && (!ae || ae.tagName !== 'INPUT')) {
       const bs = [...document.querySelectorAll('#title button')]
@@ -247,6 +247,7 @@ function handleKeys(state) {
         bs[i].focus();
       }
     }
+    ae = document.activeElement;
     if ((!ae || ae.tagName !== 'BUTTON') && wasPressed(input, 'confirm')) {
       openMenuFlow(state, 'new');
     } else if (continuePressed) openMenuFlow(state, 'continue');
