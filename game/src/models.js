@@ -174,9 +174,9 @@ export function buildBarrierMesh() {
 export function buildPickupMesh(kind) {
   const b = new Builder();
   const glow = kind === 'weapon' ? rgb('#ff9a2a') : rgb('#51e07a');
-  b.box(0, 3, 0, 11, 6, 11, rgb('#22262c'));
-  b.box(0, 6.8, 0, 9, 1.8, 9, glow, { kind: 3 });
-  b.box(0, 3, 0, 12.4, 2, 3, glow, { kind: 3 });
+  b.box(0, 2.3, 0, 10, 4.6, 10, rgb('#4a5560'));
+  b.box(0, 5.5, 0, 9, 1.8, 9, glow, { kind: 3 });
+  b.box(0, 2.3, 0, 11.4, 2, 3, glow, { kind: 3 });
   return b;
 }
 
