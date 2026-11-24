@@ -1,6 +1,4 @@
-// util.js — small pure helpers shared by every module. No DOM.
 
-// mulberry32: a tiny deterministic PRNG. Same seed -> same stream, every run.
 export function makeRng(seed) {
   let a = seed >>> 0;
   return function next() {
@@ -32,7 +30,6 @@ export function dist(ax, ay, bx, by) {
   return Math.hypot(ax - bx, ay - by);
 }
 
-// Shortest signed turn from angle a to angle b, in (-PI, PI].
 export function angleDelta(a, b) {
   let d = (b - a) % (Math.PI * 2);
   if (d > Math.PI) d -= Math.PI * 2;
@@ -48,7 +45,6 @@ export function range(rng, lo, hi) {
   return lo + rng() * (hi - lo);
 }
 
-// Circle vs axis-aligned box: true when they overlap.
 export function circleHitsBox(cx, cy, r, bx, by, bw, bh) {
   const nx = clamp(cx, bx, bx + bw);
   const ny = clamp(cy, by, by + bh);
@@ -57,7 +53,6 @@ export function circleHitsBox(cx, cy, r, bx, by, bw, bh) {
   return dx * dx + dy * dy < r * r;
 }
 
-// Push a circle out of an axis-aligned box; returns the corrected position.
 export function pushCircleOutOfBox(cx, cy, r, bx, by, bw, bh) {
   const nx = clamp(cx, bx, bx + bw);
   const ny = clamp(cy, by, by + bh);
@@ -69,7 +64,6 @@ export function pushCircleOutOfBox(cx, cy, r, bx, by, bw, bh) {
     const d = Math.sqrt(d2);
     return { x: nx + (dx / d) * r, y: ny + (dy / d) * r, hit: true };
   }
-  // Centre is inside the box: push out along the smallest penetration.
   const left = cx - bx;
   const right = bx + bw - cx;
   const top = cy - by;

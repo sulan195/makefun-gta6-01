@@ -1,4 +1,3 @@
-// progression.js — Respect ranks for Mara's rise.
 
 export const RANKS = [
   { name: 'Newcomer', min: 0 },
@@ -25,7 +24,6 @@ export function nextRank(respect) {
   return i + 1 < RANKS.length ? RANKS[i + 1] : null;
 }
 
-// Award Respect points. Returns true when a rank was gained (and says so).
 export function addRespect(state, amount) {
   if (!amount) return false;
   const before = rankIndexFor(state.respect);

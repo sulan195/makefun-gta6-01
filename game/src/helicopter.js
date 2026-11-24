@@ -1,4 +1,3 @@
-// helicopter.js — the CONDOR police helicopter and its searchlight.
 
 import { clamp, dist } from './util.js';
 import { WORLD_W, WORLD_H } from './world.js';
@@ -22,7 +21,6 @@ export function createHelicopter(state) {
   };
 }
 
-// Wanted-decay multiplier: under the searchlight, hiding barely helps.
 export function heliDecayFactor(state) {
   const heli = state.heli;
   if (!heli || heli.leaving) return 1;
@@ -41,14 +39,12 @@ export function updateHelicopter(state, dt) {
   const p = state.player;
   if (state.wanted < HELI_MIN_WANTED) heli.leaving = true;
   if (heli.leaving) {
-    // Bank away toward the north-west corner and despawn off-stage.
     heli.x -= 300 * dt;
     heli.y -= 300 * dt;
     heli.angle = Math.atan2(-1, -1);
     if (heli.x < -80 || heli.y < -80) state.heli = null;
     return;
   }
-  // Shadow the player with a slow orbit so the light feels alive.
   const t = state.clockSeconds;
   const tx = p.x + Math.cos(t * 0.35) * 70;
   const ty = p.y + Math.sin(t * 0.35) * 70 - 30;
@@ -60,7 +56,6 @@ export function updateHelicopter(state, dt) {
     heli.y += Math.sin(want) * Math.min(d, speed * dt);
     heli.angle = want;
   }
-  // The searchlight tracks Mara with a slight lag and wobble.
   heli.lightX += (p.x - heli.lightX) * Math.min(1, dt * 3.2);
   heli.lightY += (p.y - heli.lightY) * Math.min(1, dt * 3.2);
   heli.lightX += Math.sin(t * 0.9) * 14 * dt;

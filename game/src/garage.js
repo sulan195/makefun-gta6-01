@@ -1,4 +1,3 @@
-// garage.js — Udin's Garage: repairs and upgrades.
 
 import { dist } from './util.js';
 
@@ -28,7 +27,6 @@ export function nearGarage(state) {
   return dist(state.player.x, state.player.y, g.x, g.y) < GARAGE_RADIUS;
 }
 
-// What Mara's car can do with the current build.
 export function carMaxSpeed(state) {
   return 330 + ensureGarage(state).engine * 25;
 }
@@ -70,7 +68,6 @@ export function buyAmmo(state, kind) {
   return { ok: true, amount: deal.amount, price: deal.cost };
 }
 
-// The menu the HUD draws and the keys 1-5 select from.
 export function garageMenuItems(state) {
   const g = ensureGarage(state);
   const items = [];
@@ -99,7 +96,6 @@ export function garageMenuItems(state) {
   return items;
 }
 
-// Run menu choice n (1-5). Returns a player-facing result line.
 export function garageAction(state, n) {
   const item = garageMenuItems(state)[n - 1];
   if (!item) return null;

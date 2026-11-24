@@ -1,4 +1,3 @@
-// combat.js — weapons, firing, pickups and damage for Solmar City.
 
 import { dist } from './util.js';
 import { raiseWanted } from './police.js';
@@ -33,7 +32,6 @@ export function currentWeapon(state) {
   return WEAPONS[ws.current] || WEAPONS.pistol;
 }
 
-// Switch to the weapon in slot 1-4. Unowned weapons refuse with a hint.
 export function switchWeapon(state, slot) {
   const ws = ensureWeapons(state);
   const key = WEAPON_ORDER[slot - 1];
@@ -56,11 +54,6 @@ export function weaponHudText(state) {
   if (ws.current === 'pistol') return 'PISTOL · ∞';
   return w.name.toUpperCase() + ' · ' + (ws.ammo[ws.current] || 0);
 }
-
-// --- pickups ---------------------------------------------------------------
-// Fixed spots in the city: the guns themselves, plus spare ammunition.
-// Walking over one on foot collects it. One visit each per session; the
-// garage sells more ammunition afterwards.
 
 export function createPickups() {
   return [
@@ -91,10 +84,6 @@ export function updatePickups(state) {
     spawnSparks(state, pk.x, pk.y, 10, 8);
   }
 }
-
-// --- firing ------------------------------------------------------------------
-// Fire the current weapon once (cooldown and ammunition permitting).
-// Returns true when a shot actually left the barrel.
 
 export function fireWeapon(state, angle) {
   const p = state.player;
@@ -145,7 +134,6 @@ export function fireWeapon(state, angle) {
     }
     const hx = ox + dx * bestD;
     const hy = oy + dy * bestD;
-    // A tracer from the muzzle to the impact point, plus impact sparks.
     state.tracers.push({
       x1: ox + dx * 18, y1: oy + dy * 18, h1: 15,
       x2: hx, y2: hy, h2: hitKind === 'car' || hitKind === 'police' ? 8 : 12,

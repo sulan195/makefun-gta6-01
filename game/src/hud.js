@@ -1,4 +1,3 @@
-// hud.js — the DOM HUD and minimap drawn over the 3D world.
 
 import { V_ROADS, H_ROADS, districtAt } from './world.js';
 import { rankFor, nextRank } from './progression.js';
@@ -86,7 +85,6 @@ export function updateHud(hud, state) {
   setText(hud, 'speed', p.car
     ? Math.round(Math.abs(p.car.speed) * 0.36) + ' km/h' : '');
 
-  // Objective + distance to its marker.
   let target = null;
   if (state.missions.fare) {
     target = state.missions.fare.pickedUp
@@ -117,14 +115,12 @@ export function updateHud(hud, state) {
     setShown(hud, 'racetime', false);
   }
 
-  // Overlays.
   setShown(hud, 'title', state.mode === 'title');
   setShown(hud, 'pause', state.mode === 'pause');
   setShown(hud, 'busted', state.mode === 'busted');
   setShown(hud, 'wasted', state.mode === 'wasted');
   setShown(hud, 'hudmain', state.mode !== 'title');
 
-  // Garage menu (rebuilt at most ~4x per second while open).
   const gOpen = !!state.garageOpen;
   setShown(hud, 'garagemenu', gOpen);
   if (gOpen) {
@@ -169,7 +165,6 @@ function drawMinimap(hud, state, px, py) {
   }
   for (const pc of state.police) dot(pc.x, pc.y, '#3f8cff', 2.4);
   if (state.heli) dot(state.heli.x, state.heli.y, '#7fe7ff', 2.6);
-  // Player arrow.
   const a = state.player.car ? state.player.car.angle : state.player.angle;
   g.fillStyle = '#ffffff';
   g.save();

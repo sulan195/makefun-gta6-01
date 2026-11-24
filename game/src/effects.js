@@ -1,12 +1,9 @@
-// effects.js — particles, burning cars and scorch marks.
 
 import { dist } from './util.js';
 import { playThud } from './audio.js';
 import { damagePlayer } from './player.js';
 import { clampToWorld } from './entities.js';
 
-// Particle: {x, y (ground), h (height), vx, vy, vh, life, maxLife,
-// color (hex), size, alpha, grav}
 export function spawnSparks(state, x, y, n, h = 8) {
   const rng = state.rng;
   for (let i = 0; i < n; i++) {
@@ -61,11 +58,6 @@ export function updateParticles(state, dt) {
   for (const tr of state.tracers) tr.life -= dt;
   state.tracers = state.tracers.filter((tr) => tr.life > 0);
 }
-
-// burning cars
-// A car at 0 hp catches fire: flames and smoke for a few seconds, then it
-// explodes — hurting everyone close, chaining into nearby cars and
-// leaving a scorch mark. Mara's own car warns her long before that.
 
 export function explodeCar(state, car) {
   if (car.exploded) return;
@@ -137,7 +129,6 @@ export function updateBurning(state, dt) {
       spawnSmoke(state, car);
     }
   }
-  // Exploded patrol cars leave the force; the wreck stays on the street.
   for (let i = state.police.length - 1; i >= 0; i--) {
     if (state.police[i].exploded) {
       const wreck = state.police.splice(i, 1)[0];

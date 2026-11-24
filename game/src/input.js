@@ -1,4 +1,3 @@
-// input.js — keyboard and mouse input state.
 
 export function createInput() {
   return {
@@ -82,7 +81,6 @@ export function attachInput(input, element) {
   });
 }
 
-// Was this control pressed since the last frame? Consumes the edge.
 export function wasPressed(input, name) {
   if (input.pressed.has(name)) {
     input.pressed.delete(name);

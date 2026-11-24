@@ -1,4 +1,3 @@
-// entities.js — pedestrians, enemies and shared collision maths.
 
 import { clamp, dist, pick, range, circleHitsBox, pushCircleOutOfBox } from './util.js';
 import { V_ROADS, H_ROADS, WORLD_W, WORLD_H, ROAD_W } from './world.js';

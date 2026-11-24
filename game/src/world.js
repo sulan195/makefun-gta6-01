@@ -1,4 +1,3 @@
-// world.js — Solmar City's layout data: road grid, buildings, trees, named places.
 
 import { makeRng, pick, range } from './util.js';
 
@@ -7,7 +6,6 @@ export const WORLD_H = 1920;
 export const ROAD_W = 72;
 export const SIDEWALK = 18;
 
-// Vertical road centre x positions, horizontal road centre y positions.
 export const V_ROADS = [200, 520, 840, 1160, 1480, 1800, 2120, 2360];
 export const H_ROADS = [200, 520, 840, 1160, 1480, 1680];
 
@@ -23,7 +21,6 @@ export function buildWorld(seed) {
   const trees = [];
   const parkedSpots = [];
 
-  // District names, by block column/row, for flavour text on the HUD.
   const districts = [];
   for (let r = 0; r < H_ROADS.length - 1; r++) {
     districts[r] = [];
@@ -45,7 +42,6 @@ export function buildWorld(seed) {
       const y1 = H_ROADS[r + 1] - ROAD_W / 2 - SIDEWALK;
       const district = districts[r][c];
       if (district === 'Palmera Park') {
-        // A green square with palm trees and a pond, no buildings.
         for (let i = 0; i < 26; i++) {
           trees.push({
             x: range(rng, x0 + 14, x1 - 14),
@@ -56,7 +52,6 @@ export function buildWorld(seed) {
         continue;
       }
       if (district === 'Harbour') {
-        // Crates and containers near the docks, no tall buildings.
         for (let i = 0; i < 5; i++) {
           buildings.push({
             x: range(rng, x0, x1 - 90), y: range(rng, y0, y1 - 50),
@@ -67,7 +62,6 @@ export function buildWorld(seed) {
         }
         continue;
       }
-      // Ordinary block: 2-4 buildings with gaps between them.
       const cols = rng() < 0.5 ? 2 : 3;
       const rows = rng() < 0.5 ? 1 : 2;
       const cw = (x1 - x0) / cols;
@@ -94,7 +88,6 @@ export function buildWorld(seed) {
     }
   }
 
-  // Parked cars along a few road edges.
   for (let i = 0; i < 14; i++) {
     const vertical = rng() < 0.5;
     if (vertical) {
@@ -114,10 +107,8 @@ export function buildWorld(seed) {
     }
   }
 
-  // A parked row along the seafront road, facing the beach.
   for (let x = 300; x < WORLD_W - 200; x += 230) parkedSpots.push({ x, y: 1680 + ROAD_W / 2 - 12, angle: 0 });
 
-  // Traffic lights: one per crossing, cycling on a shared clock.
   const lights = [];
   for (const y of H_ROADS) {
     for (const x of V_ROADS) {
@@ -127,7 +118,6 @@ export function buildWorld(seed) {
 
   return {
     seed, buildings, trees, parkedSpots, lights, districts,
-    // Named places the missions use.
     places: {
       taxiStand: { x: 520, y: 520, name: 'Taxi stand, Old Town' },
       marina: { x: 2360, y: 200, name: 'Marina West pier' },
@@ -142,8 +132,6 @@ export function buildWorld(seed) {
   };
 }
 
-// Which road (if any) is the point on? Returns {axis:'v'|'h', index, along}
-// or null when the point is inside a block.
 export function roadAt(x, y) {
   for (let i = 0; i < V_ROADS.length; i++) {
     if (Math.abs(x - V_ROADS[i]) <= ROAD_W / 2) return { axis: 'v', index: i, along: y };
@@ -158,7 +146,6 @@ export function isOnRoad(x, y) {
   return roadAt(x, y) !== null;
 }
 
-// Nearest road centre point to (x, y): used to snap pedestrians to sidewalks.
 export function nearestRoadPoint(x, y) {
   let best = null;
   let bestD = Infinity;
@@ -173,7 +160,6 @@ export function nearestRoadPoint(x, y) {
   return best;
 }
 
-// District name for a point, for the HUD location line.
 export function districtAt(world, x, y) {
   let c = 0;
   for (let i = 0; i < V_ROADS.length - 1; i++) if (x > V_ROADS[i]) c = i;
