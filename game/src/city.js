@@ -26,6 +26,8 @@ function palm(b, x, z, s) {
     const a = (k / 6) * Math.PI * 2 + (x % 1.7);
     b.box(x + Math.cos(a) * 8 * s, 26.5 * s, z + Math.sin(a) * 8 * s,
       17 * s, 0.7, 3.6 * s, k % 2 ? green : shade('#3f7d3a', 1.25), { ry: -a });
+    b.box(x + Math.cos(a + 0.52) * 9 * s, 24.4 * s, z + Math.sin(a + 0.52) * 9 * s,
+      15 * s, 0.6, 3.2 * s, shade('#3f7d3a', 0.8), { ry: -a - 0.52 });
   }
   b.box(x, 25.5 * s, z, 5 * s, 4 * s, 5 * s, shade('#3f7d3a', 0.8));
 }
