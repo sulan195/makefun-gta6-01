@@ -1,4 +1,3 @@
-// city.js — Solmar City's static geometry, merged into ground + props lit builders. Pure data.
 
 import { Builder, rgb, shade } from './gl.js';
 import { hashSeed, makeRng } from './util.js';
@@ -15,9 +14,9 @@ const WATER = rgb('#1d5f8a');
 
 function buildingHeight(b) {
   const h = hashSeed(Math.round(b.x) + ',' + Math.round(b.y)) % 100;
-  if (b.district === 'Harbour') return 5 + (h % 5);
-  if (b.tall) return 44 + (h % 42);
-  return 14 + (h % 17);
+  if (b.district === 'Harbour') return 10 + (h % 8);
+  if (b.tall) return 78 + (h % 64);
+  return 26 + (h % 26);
 }
 
 function palm(b, x, z, s) {
@@ -41,15 +40,11 @@ export function buildCity(world) {
   const ground = new Builder();
   const props = new Builder();
 
-  // Far land under everything, then the city base and the south beach.
   ground.box(WORLD_W / 2, -0.35, WORLD_H / 2, 9000, 0.5, 9000, LAND);
   ground.box(WORLD_W / 2, -0.05, 1740 / 2, WORLD_W, 0.1, 1740, rgb('#a89a76'));
   ground.box(WORLD_W / 2, 0.02, (1740 + 1890) / 2, WORLD_W, 0.09, 150, SAND);
-  // Palmera Park green.
   ground.box((1160 + 1480) / 2, 0.015, (840 + 1160) / 2, 232, 0.07, 232, GRASS);
 
-  // Distant skyline clusters on the far shore: low hazy silhouettes that
-  // break the fog band at the horizon (in ground, so they cast no shadows).
   for (let i = 0; i < 44; i++) {
     const a = (i % 6) * (Math.PI / 3) + (hashSeed('sky' + i) % 100) / 100 * 0.34 - 0.17;
     const rad = 2700 + (hashSeed('skyr' + i) % 500);
@@ -60,8 +55,6 @@ export function buildCity(world) {
       80, rgb('#55677e'));
   }
 
-  // Ground richness: tonal patches on the sand and the park grass, and
-  // bright beach towels scattered along the shore.
   for (let i = 0; i < 70; i++) {
     ground.box(60 + (hashSeed('sand' + i) % 2400), 0.075,
       1754 + (hashSeed('sandz' + i) % 124),
@@ -81,7 +74,6 @@ export function buildCity(world) {
       shade('#7da05c', 0.88 + (hashSeed('grassc' + i) % 16) / 100));
   }
 
-  // The sea: a tessellated plane south of the beach (kind 2 = waves).
   {
     const x0 = -300, x1 = WORLD_W + 300, z0 = 1850, z1 = 2900;
     const nx = 30, nz = 10;
@@ -101,7 +93,6 @@ export function buildCity(world) {
     }
   }
 
-  // Sidewalks (under) and asphalt (over), then lane dashes and crosswalks.
   for (const x of V_ROADS) {
     ground.box(x, 0.03, WORLD_H / 2, ROAD_W + 36, 0.06, WORLD_H, SIDEWALK);
     ground.box(x, 0.07, WORLD_H / 2, ROAD_W, 0.08, WORLD_H, ASPHALT);
@@ -122,13 +113,11 @@ export function buildCity(world) {
         ground.box(x + i * 13, 0.125, y - ROAD_W / 2 - 9, 7, 0.03, 10, CROSS);
         ground.box(x - ROAD_W / 2 - 9, 0.125, y + i * 13, 10, 0.03, 7, CROSS);
       }
-      // One traffic-light pole per crossing.
       props.cyl(x + 46, 5, y + 46, 0.5, 0.65, 10, 6, rgb('#22262a'));
       props.box(x + 46, 11, y + 46, 2.4, 5, 2.4, rgb('#14171a'));
     }
   }
 
-  // Streetlights along every road: pole + warm glowing head (kind 3).
   const lampPole = rgb('#2a2e33');
   const lampHead = rgb('#ffd9a0');
   const lampAt = (x, z) => {
@@ -142,7 +131,6 @@ export function buildCity(world) {
     for (let x = 130, s = 0; x < WORLD_W - 60; x += 168, s++) lampAt(x, y + (s % 2 ? -44 : 44));
   }
 
-  // Buildings: windowed walls (kind 1), a roof slab, rooftop clutter.
   for (const b of world.buildings) {
     const h = buildingHeight(b);
     const cx = b.x + b.w / 2, cz = b.y + b.h / 2;
@@ -156,11 +144,9 @@ export function buildCity(world) {
     if (r >= 45 && r < 58 && b.district !== 'Harbour') {
       props.cyl(cx - 4, h + 2.6, cz + 3, 2.6, 2.6, 2.6, 8, shade(b.roof, 1.5));
     }
-    // Rooftop billboards on some towers: real text signs from the atlas.
     if (b.tall && r >= 60 && r < 80) {
       props.spanel(cx, h + 1.4, cz + b.h / 2 + 1, b.w * 0.66, 8, 0, r % 8);
     }
-    // A shopfront sign on the side facing the nearest road.
     const r2 = hashSeed('sign' + Math.round(b.x) + ',' + Math.round(b.y)) % 100;
     if (r2 < 38 && h >= 19 && b.district !== 'Harbour') {
       const nv = V_ROADS.reduce((m, a2) =>
@@ -180,21 +166,18 @@ export function buildCity(world) {
     }
   }
 
-  // Trees and palms from the world data (hash picks the species).
   for (const t of world.trees) {
-    const s = 0.8 + (t.r / 12) * 0.5;
+    const s = (0.8 + (t.r / 12) * 0.5) * 1.25;
     const h = hashSeed('tree' + Math.round(t.x) + ',' + Math.round(t.y)) % 100;
     if (h < 55) palm(props, t.x, t.y, s);
     else leafyTree(props, t.x, t.y, s);
   }
 
-  // Udin's Garage sign on the Southside corner (place at 840, 1480).
   props.cyl(788, 9, 1428, 0.5, 0.65, 18, 6, rgb('#22262a'));
   props.box(788, 17.5, 1428, 3, 9, 26, rgb('#1248c0'), { kind: 3 });
   props.box(788, 17.5, 1428, 3.4, 2.2, 26, rgb('#ffd34d'), { kind: 3 });
   props.spanel(790, 13.5, 1428, 24, 8, -Math.PI / 2, 2); // UDIN'S GARAGE
 
-  // Two harbour cranes over the yards.
   const crane = rgb('#c85a20');
   for (const [cx, cz] of [[2295, 1600], [1887, 1596]]) {
     props.box(cx - 35, 26, cz, 5, 52, 5, crane);
@@ -204,8 +187,6 @@ export function buildCity(world) {
     props.box(cx - 55, 34, cz, 12, 6, 10, rgb('#4d7d8a'));
   }
 
-  // Container yards in the harbour blocks: stacked shipping boxes,
-  // placed by position hash so the layout is stable.
   const CONT = ['#b3402e', '#2e6fb3', '#3f8a4d', '#c9862b', '#7a4d8a', '#4d7d8a'];
   for (let c = 4; c < V_ROADS.length - 1; c++) {
     const x0 = V_ROADS[c] + 62;
@@ -220,9 +201,11 @@ export function buildCity(world) {
     }
   }
 
-  // Seafront: boardwalk + palms, beach umbrellas, a pier, moored boats.
   ground.box(WORLD_W / 2, 0.06, 1718, WORLD_W - 80, 0.1, 44, rgb('#c9b18a'));
-  for (let x = 90; x < WORLD_W - 60; x += 118) palm(props, x, 1704, 0.75);
+  for (let x = 90; x < WORLD_W - 60; x += 118) {
+    if (V_ROADS.some((rx) => Math.abs(x - rx) < 58)) continue;
+    palm(props, x, 1724, 0.95);
+  }
   const UMB = ['#e2543e', '#f2f0e6', '#3e7dc9', '#f0b429'];
   for (let i = 0; i < 22; i++) {
     const x = 150 + i * 108 + (hashSeed('umb' + i) % 60);
@@ -242,13 +225,17 @@ export function buildCity(world) {
     props.box(x - 2, 5.5, z, 12, 3.5, 7, rgb('#f6f2e6'));
     props.cyl(x + 4, 13, z, 0.3, 0.4, 16, 4, rgb('#d8d2c2'));
   }
+  for (let i = 0; i < 3; i++) {
+    const x = 500 + i * 800 + (hashSeed('sb' + i) % 200);
+    const z = 2250 + (hashSeed('sbz' + i) % 200);
+    props.box(x, 1.1, z, 27, 3.4, 8.5, rgb('#f6f2e6'));
+    props.box(x + 1, 3.6, z, 10, 2.2, 6.5, rgb('#2e6fc2'));
+    props.box(x - 10, 3.4, z, 5, 3, 6, rgb('#24272b'));
+  }
 
   return { ground, props };
 }
 
-// Sun for a game clock (minutes): direction TO the sun, its colour, the
-// ambient floor and fog colour. Golden at the ends of the day, white at
-// noon, deep blue at night. Deterministic in the clock alone.
 export function sunForClock(minutes) {
   const t = ((minutes % 1440) + 1440) % 1440;
   const day = (t - 360) / (1140 - 360); // 06:00 -> 0, 19:00 -> 1
@@ -270,14 +257,13 @@ export function sunForClock(minutes) {
   const mixc = (a, b, f) => a + (b - a) * f;
   return {
     sunDir,
-    sunCol: [mixc(1.25, 1.05, 1 - warmth), mixc(0.62, 0.98, 1 - warmth), mixc(0.34, 0.92, 1 - warmth)],
-    amb: [0.42 + 0.1 * (1 - warmth), 0.36, 0.30],
-    fog: [0.98, 0.72 + 0.1 * (1 - warmth), 0.52 + 0.18 * (1 - warmth)],
+    sunCol: [mixc(1.42, 1.16, 1 - warmth), mixc(0.74, 1.06, 1 - warmth), mixc(0.44, 1.0, 1 - warmth)],
+    amb: [0.56 + 0.08 * (1 - warmth), 0.53, 0.48],
+    fog: [1.0, 0.76 + 0.1 * (1 - warmth), 0.58 + 0.16 * (1 - warmth)],
     zen: [0.30, 0.52, 0.86],
-    hor: [1.0, 0.76, 0.52],
+    hor: [1.0, 0.80, 0.58],
     fogDen: 0.00030,
   };
 }
 
-// A seeded RNG re-export so callers that only need the city keep one import.
 export { makeRng };

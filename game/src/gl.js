@@ -1,6 +1,4 @@
-// gl.js — hand-rolled WebGL2 for Solmar City: shaders, matrices, mesh builders. No libraries.
 
-// matrices
 export function m4ident() {
   return new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
 }
@@ -43,7 +41,6 @@ export function m4mul(a, b) {
   return o;
 }
 
-// Translation * rotY * uniform scale — the only model transform props need.
 export function m4compose(x, y, z, ry, s) {
   const c = Math.cos(ry), sn = Math.sin(ry);
   return new Float32Array([
@@ -54,7 +51,6 @@ export function m4compose(x, y, z, ry, s) {
   ]);
 }
 
-// Basis matrix from local axes + origin (the searchlight cone).
 export function m4basis(xa, ya, za, ox, oy, oz) {
   return new Float32Array([
     xa[0], xa[1], xa[2], 0,
@@ -64,12 +60,10 @@ export function m4basis(xa, ya, za, ox, oy, oz) {
   ]);
 }
 
-// Normal matrix (upper 3x3 of a model matrix; fine for rotY + uniform scale).
 export function m3normal(m) {
   return new Float32Array([m[0], m[1], m[2], m[4], m[5], m[6], m[8], m[9], m[10]]);
 }
 
-// colours
 const rgbCache = new Map();
 export function rgb(hex) {
   let v = rgbCache.get(hex);
@@ -85,18 +79,12 @@ export function shade(hex, f) {
   return [Math.min(1, c[0] * f), Math.min(1, c[1] * f), Math.min(1, c[2] * f)];
 }
 
-// The sign atlas: 8 cells in a 4x2 grid (render.js paints the words).
-// Returns [u0, v0, u1, v1] for cell i, v measured from the bottom.
 export function signUV(i) {
   const u0 = (i % 4) * 0.25;
   const v1 = 1 - Math.floor(i / 4) * 0.5;
   return [u0, v1 - 0.5, u0 + 0.25, v1];
 }
 
-// mesh build
-// Lit-mesh builder. kind: 0 plain, 1 building wall (windows), 2 water,
-// 3 emissive, 4/5 police light halves, 6 tintable, 7 sign atlas.
-// part: character limbs.
 export class Builder {
   constructor() {
     this.pos = []; this.nor = []; this.col = []; this.kind = []; this.part = [];
@@ -118,7 +106,6 @@ export class Builder {
 
   quad(a, b, c, d) { this.tri(a, b, c); this.tri(a, c, d); }
 
-  // Axis-aligned box centred at (cx, cy, cz); optional rotY around centre.
   box(cx, cy, cz, sx, sy, sz, color, opt = {}) {
     const kind = opt.kind || 0;
     const part = opt.part || 0;
@@ -127,7 +114,6 @@ export class Builder {
     const cs = Math.cos(ry), sn = Math.sin(ry);
     const corner = (x, y, z) => [cx + x * cs + z * sn, cy + y, cz - x * sn + z * cs];
     const nrm = (x, y, z) => [x * cs + z * sn, y, -x * sn + z * cs];
-    // faces: +x, -x, +y, -y, +z, -z with outward normals
     const faces = [
       { n: [1, 0, 0], c: [[hx, -hy, -hz], [hx, -hy, hz], [hx, hy, hz], [hx, hy, -hz]] },
       { n: [-1, 0, 0], c: [[-hx, -hy, hz], [-hx, -hy, -hz], [-hx, hy, -hz], [-hx, hy, hz]] },
@@ -148,7 +134,6 @@ export class Builder {
     }
   }
 
-  // Vertical quad through (x, z) facing angle a: a billboard panel.
   panel(x, y, z, w, h, a, color, opt = {}) {
     const kind = opt.kind || 0;
     const dx = Math.cos(a) * w / 2, dz = Math.sin(a) * w / 2;
@@ -165,8 +150,6 @@ export class Builder {
     this.quad(b2, b1, b4, b3);
   }
 
-  // A panel textured from cell i of the sign atlas (kind 7): both faces
-  // read correctly, so a rooftop billboard works from either side.
   spanel(x, y, z, w, h, a, i) {
     const [u0, v0, u1, v1] = signUV(i);
     const c = [1, 1, 1];
@@ -184,7 +167,6 @@ export class Builder {
     this.quad(b2, b1, b4, b3);
   }
 
-  // Cylinder along Y, open or capped, centred at (cx, cy, cz).
   cyl(cx, cy, cz, rTop, rBot, h, seg, color, opt = {}) {
     const kind = opt.kind || 0;
     const y0 = cy - h / 2, y1 = cy + h / 2;
@@ -212,7 +194,6 @@ export class Builder {
     }
   }
 
-  // Torus in the XZ-vertical plane facing +X (race checkpoint rings).
   torus(cx, cy, cz, radius, tube, seg, color, opt = {}) {
     const kind = opt.kind || 0;
     const ring = [];
@@ -239,7 +220,6 @@ export class Builder {
   }
 }
 
-// Alpha-mesh builder: position + RGBA, for shadows and additive glows.
 export class BuilderA {
   constructor() { this.pos = []; this.col = []; this.idx = []; }
 
@@ -252,7 +232,6 @@ export class BuilderA {
   tri(a, b, c) { this.idx.push(a, b, c); }
   quad(a, b, c, d) { this.tri(a, b, c); this.tri(a, c, d); }
 
-  // Flat ground quad (XZ plane) centred at (x, z).
   groundQuad(x, y, z, w, d, color, ry = 0) {
     const cs = Math.cos(ry), sn = Math.sin(ry);
     const hw = w / 2, hd = d / 2;
@@ -265,7 +244,6 @@ export class BuilderA {
     this.quad(a, b, c, e);
   }
 
-  // Ground disc with a soft edge: centre alpha aIn, rim alpha aOut.
   disc(x, y, z, r, color, aIn, aOut, seg = 18) {
     const c = this.vert(x, y, z, [color[0], color[1], color[2], aIn]);
     let prev = null, first = null;
@@ -279,8 +257,6 @@ export class BuilderA {
     }
   }
 
-  // Open cone: apex at origin, base circle at y=-1 (radius 1). Alpha fades
-  // from aTop (apex) to aBot (base). Instance it with m4basis + scale.
   cone(color, aTop, aBot, seg = 20) {
     let prevT = null, prevB = null;
     for (let i = 0; i <= seg; i++) {
@@ -296,13 +272,10 @@ export class BuilderA {
   counts() { return { verts: this.pos.length / 3, tris: this.idx.length / 3 }; }
 }
 
-// GL setup
 export function createGL(canvas) {
   const gl = canvas.getContext('webgl2', { antialias: true, alpha: false });
   if (!gl) return null;
   gl.enable(gl.DEPTH_TEST);
-  gl.enable(gl.CULL_FACE);
-  gl.cullFace(gl.BACK);
   return gl;
 }
 
@@ -340,7 +313,6 @@ export function createProgram(gl, vsSrc, fsSrc, attribs = null) {
   };
 }
 
-// lit mesh
 export const LIT_VS = `#version 300 es
 in vec3 aPos; in vec3 aNor; in vec3 aCol; in float aKind; in float aPart;
 in vec2 aUv;
@@ -435,7 +407,6 @@ export class Mesh {
       gl.vertexAttribPointer(loc, size, gl.FLOAT, false, 0, 0);
       this._bufs.push(b);
     };
-    // attribute locations are bound by the renderer's program setup
     mk(builder.pos, 3, 0);
     mk(builder.nor, 3, 1);
     mk(builder.col, 3, 2);
@@ -455,7 +426,6 @@ export class Mesh {
   }
 }
 
-// Alpha mesh (static or rebuilt per frame when dynamic=true).
 export class MeshA {
   constructor(gl, builder, dynamic = false) {
     this.dynamic = dynamic;
@@ -510,7 +480,6 @@ in vec4 vCol;
 out vec4 outColor;
 void main() { outColor = vCol; }`;
 
-// Point sprites for sparks, flames, smoke and dust.
 export class Points {
   constructor(gl, max = 2048) {
     this.max = max;
@@ -575,7 +544,6 @@ void main() {
   outColor = vec4(vCol.rgb, a);
 }`;
 
-// Sky dome: a gradient with a sun glow, drawn on a fullscreen-facing cube.
 export const SKY_VS = `#version 300 es
 in vec3 aPos;
 out vec2 vNdc;
