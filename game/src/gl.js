@@ -361,7 +361,7 @@ void main() {
     if (uvw.y < 3.5) {
       col *= 0.52;
       if (uvw.y > 3.05) col *= 1.45;
-      else if (f.x > 0.34 && f.x < 0.66 && uvw.y > 0.35) col *= 0.5;
+      else if (h > 0.42 && abs(f.x - 0.28 - h * 0.44) < 0.15 && uvw.y > 0.35) col *= 0.5;
     }
   }
   if (kind > 1.5 && kind < 2.5) {
