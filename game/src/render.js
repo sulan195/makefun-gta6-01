@@ -1,4 +1,3 @@
-// render.js — the WebGL2 renderer: merged city, sun shadows, searchlight, particles.
 
 import {
   createGL, createProgram, Mesh, MeshA, Points, Builder, BuilderA,
@@ -7,7 +6,8 @@ import {
 } from './gl.js';
 import { buildCity, sunForClock } from './city.js';
 import {
-  buildCarMesh, buildPoliceMesh, buildPersonMesh, buildHeliMesh,
+  buildCarMesh, buildPoliceMesh, buildPersonMesh, buildTruckMesh,
+  buildMotoMesh, buildHeliMesh,
   buildHeliRotor, buildBarrierMesh, buildPickupMesh, buildRingMesh,
   buildDiamondMesh,
 } from './models.js';
@@ -29,8 +29,6 @@ const MARA_TINT = rgb('#9c2b1e');
 const ENEMY_TINT = rgb('#43484f');
 const IDENT = new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
 
-// The sign atlas: eight fictional Solmar brands painted on one canvas at
-// startup; city.js picks a cell per sign via Builder.spanel (kind 7).
 const SIGN_DEFS = [
   ['SOLMAR BANK', '#1248c0', '#ffffff'],
   ['MARINA HOTEL', '#0b5563', '#ffe9a8'],
@@ -81,8 +79,6 @@ export function createRenderer(canvas, world) {
   const shadow = createProgram(gl, SHADOW_VS, SHADOW_FS, { aPos: 0 });
 
   const city = buildCity(world);
-  // The sky is one clip-space triangle: the fragment shader rebuilds the
-  // view ray per pixel, so there are no cube-face seams or clipped wedges.
   const skyBuilder = new Builder();
   {
     const c = [1, 1, 1];
@@ -103,6 +99,9 @@ export function createRenderer(canvas, world) {
     props: new Mesh(gl, city.props),
     skyMesh: new Mesh(gl, skyBuilder),
     car: new Mesh(gl, buildCarMesh()),
+    truck: new Mesh(gl, buildTruckMesh()),
+    moto: new Mesh(gl, buildMotoMesh()),
+    player: new Mesh(gl, buildPersonMesh(0)),
     police: new Mesh(gl, buildPoliceMesh()),
     persons: [0, 1, 2].map((v) => new Mesh(gl, buildPersonMesh(v))),
     signTex: signTexture(gl),
@@ -137,11 +136,15 @@ function setLit(R, model, tint, walk, walkAmp, blink) {
 const ROTZ_DOWN = new Float32Array([0, -1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
 
 function drawPerson(R, x, y, angle, tint, walkPhase, walkAmp, down,
-  variant = 0, scale = 1) {
+  variant = 0, scale = 1, mesh = null) {
   let m = m4compose(x, 0, y, -angle, scale);
   if (down) m = m4mul(m4compose(x, 2.5 * scale, y, -angle, scale), ROTZ_DOWN);
   setLit(R, m, tint, walkPhase, down ? 0 : walkAmp, 0);
-  R.persons[variant].draw(R.gl);
+  (mesh || R.persons[variant]).draw(R.gl);
+}
+
+export function rebuildPlayer(R, custom) {
+  R.player = new Mesh(R.gl, buildPersonMesh(0, custom));
 }
 
 function drawCar(R, car) {
@@ -149,10 +152,10 @@ function drawCar(R, car) {
   const blink = isPolice ? (Math.sin(car.sirenPhase * 9) > 0 ? 1 : 0) : 0;
   setLit(R, m4compose(car.x, 0, car.y, -car.angle, 1),
     isPolice ? [1, 1, 1] : rgb(car.color), 0, 0, blink);
-  (isPolice ? R.police : R.car).draw(R.gl);
+  (isPolice ? R.police : car.vtype === 'truck' ? R.truck
+    : car.vtype === 'moto' ? R.moto : R.car).draw(R.gl);
 }
 
-// Ring orientation: face along the race route through each checkpoint.
 function ringRotY(idx) {
   const pts = [RACE_START, ...RACE_POINTS];
   const prev = pts[idx];
@@ -162,14 +165,18 @@ function ringRotY(idx) {
 
 export function drawScene(R, state) {
   const { gl } = R;
+  const q = state.quality || 'high';
+  if (R.q !== q) {
+    R.q = q;
+    const s = q === 'low' ? 0.5 : q === 'medium' ? 0.75 : 1;
+    gl.canvas.width = Math.round(1280 * s);
+    gl.canvas.height = Math.round(800 * s);
+  }
   const sun = sunForClock(state.clockMinutes);
   const t = state.clockSeconds;
 
-  // camera
   let eye, target;
   if (state.mode === 'title') {
-    // From the north shore, looking south across the whole city to the
-    // beach and the sea, with the low sun raking in from the west.
     const a = -1.85 + t * 0.016;
     eye = [1400 + Math.cos(a) * 1150, 210 + Math.sin(t * 0.1) * 10, 1400 + Math.sin(a) * 1150];
     target = [1400, 0, 1400];
@@ -186,7 +193,6 @@ export function drawScene(R, state) {
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
   gl.depthFunc(gl.LEQUAL);
 
-  // sky
   gl.useProgram(R.sky.prog);
   const skyView = new Float32Array(view);
   skyView[12] = 0; skyView[13] = 0; skyView[14] = 0;
@@ -205,7 +211,6 @@ export function drawScene(R, state) {
   R.skyMesh.draw(gl);
   gl.depthMask(true);
 
-  // lit world
   gl.useProgram(R.lit.prog);
   gl.activeTexture(gl.TEXTURE0);
   gl.bindTexture(gl.TEXTURE_2D, R.signTex);
@@ -243,16 +248,16 @@ export function drawScene(R, state) {
   for (const ped of state.peds) {
     drawPerson(R, ped.x, ped.y, ped.angle, rgb(ped.shirt),
       ped.walkPhase, ped.flee > 0 ? 1 : 0.75, ped.down,
-      ped.variant || 0, ped.scale || 1);
+      ped.variant || 0, (ped.scale || 1) * 0.7);
   }
   for (const e of state.enemies) {
     if (!e.alive) continue;
     drawPerson(R, e.x, e.y, e.angle, ENEMY_TINT, e.walkPhase || 0, 0.9, false,
-      1, 1.05);
+      1, 0.74);
   }
   if (p.onFoot) {
     drawPerson(R, p.x, p.y, p.angle, MARA_TINT,
-      p.walkPhase, p.moving ? 1 : 0, false);
+      p.walkPhase, p.moving ? 1 : 0, false, 0, 0.7, R.player);
   }
   if (state.heli) {
     const h = state.heli;
@@ -284,9 +289,8 @@ export function drawScene(R, state) {
     R.diamond.draw(gl);
   }
 
-  // sun shadows: the real prop geometry, projected flat
   const S = sun.sunDir;
-  if (S[1] > 0.03) {
+  if (S[1] > 0.03 && state.quality !== 'low') {
     const L = [-S[0], -S[1], -S[2]];
     const k = 1 / L[1];
     const sp = new Float32Array([
@@ -309,7 +313,6 @@ export function drawScene(R, state) {
     gl.disable(gl.BLEND);
   }
 
-  // blob shadows + scorch marks
   {
     const b = new BuilderA();
     for (const s of state.scorches || []) {
@@ -337,7 +340,6 @@ export function drawScene(R, state) {
     gl.depthMask(true);
   }
 
-  // additive glows: searchlight, marker pillar, tracers
   gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
   if (state.heli && !state.heli.leaving) {
     const h = state.heli;
@@ -392,7 +394,6 @@ export function drawScene(R, state) {
   }
   gl.disable(gl.BLEND);
 
-  // particles
   const drawPts = (cloud, list) => {
     if (!list.length) { cloud.count = 0; return; }
     const pos = new Float32Array(list.length * 3);

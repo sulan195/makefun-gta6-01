@@ -1,4 +1,3 @@
-// cars.js — traffic, parked cars and driving physics.
 
 import { clamp, pick, range, makeRng } from './util.js';
 import { V_ROADS, H_ROADS, WORLD_W, WORLD_H } from './world.js';
@@ -21,6 +20,7 @@ export function makeCar(x, y, angle, opts = {}) {
     x, y, angle, speed: opts.speed || 0,
     color: opts.color || pick(rng, CAR_COLORS),
     kind: opts.kind || 'traffic', // traffic | parked | player | police | wreck
+    vtype: opts.vtype || 'car', // car | truck | moto
     driver: opts.driver !== undefined ? opts.driver : true,
     hp: 100, braking: false, smoke: 0,
     burning: 0, exploded: false, warnedLow: false,
@@ -32,9 +32,12 @@ export function makeCar(x, y, angle, opts = {}) {
 
 export function spawnParkedCars(world, rng) {
   const cars = [];
+  let i = 0;
   for (const spot of world.parkedSpots) {
+    i += 1;
     cars.push(makeCar(spot.x, spot.y, spot.angle, {
       kind: 'parked', driver: false, rng, speed: 0,
+      vtype: i % 9 === 7 ? 'truck' : i % 6 === 4 ? 'moto' : 'car',
     }));
   }
   return cars;
@@ -51,6 +54,7 @@ export function spawnTraffic(world, rng, count) {
         lane > 0 ? Math.PI / 2 : -Math.PI / 2, {
           kind: 'traffic', rng, roadAxis: 'v', roadIndex: idx,
           dir: lane > 0 ? 1 : -1, targetSpeed: range(rng, 85, 135),
+          vtype: rng() < 0.22 ? 'truck' : rng() < 0.14 ? 'moto' : 'car',
         }));
     } else {
       const idx = Math.floor(rng() * H_ROADS.length);
@@ -59,13 +63,13 @@ export function spawnTraffic(world, rng, count) {
         lane > 0 ? 0 : Math.PI, {
           kind: 'traffic', rng, roadAxis: 'h', roadIndex: idx,
           dir: lane > 0 ? 1 : -1, targetSpeed: range(rng, 85, 135),
+          vtype: rng() < 0.22 ? 'truck' : rng() < 0.14 ? 'moto' : 'car',
         }));
     }
   }
   return cars;
 }
 
-// 8-second cycle; vertical and horizontal take turns.
 export function lightIsGreenFor(world, axis, clockSeconds) {
   const phase = Math.floor(clockSeconds / 8) % 2;
   return (axis === 'v') === (phase === 0);
@@ -118,7 +122,6 @@ export function updateTraffic(state, dt) {
   }
 }
 
-// Mara at the wheel. input.up/down accelerate and brake, left/right steer.
 export function updatePlayerDriving(state, input, dt) {
   const p = state.player;
   const car = p.car;

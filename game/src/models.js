@@ -1,4 +1,3 @@
-// models.js — low-poly prop factories. Every model faces +X and stands on y=0.
 
 import { Builder, rgb, shade } from './gl.js';
 
@@ -15,7 +14,6 @@ function wheels(b) {
   }
 }
 
-// A city car: tintable body and hood (kind 6), glass cabin, lights.
 export function buildCarMesh() {
   const b = new Builder();
   const white = [1, 1, 1];
@@ -33,8 +31,6 @@ export function buildCarMesh() {
   return b;
 }
 
-// The police interceptor: blue flank bands, push bar, and the red/blue
-// light bar (kinds 4/5 blink). Must read as POLICE in a single frame.
 export function buildPoliceMesh() {
   const b = new Builder();
   const white = rgb('#eef1f4');
@@ -59,42 +55,74 @@ export function buildPoliceMesh() {
   return b;
 }
 
-// A person, 26 units tall, origin at the feet, facing +X. The torso and
-// arms are tintable (kind 6 = shirt/jacket). Parts: 1/2 legs, 3/4 arms —
-// the vertex shader swings them while walking. Three variants (pants,
-// skin, hair/cap) keep the crowd from looking cloned.
-export function buildPersonMesh(variant = 0) {
+export function buildPersonMesh(variant = 0, custom = null) {
   const b = new Builder();
   const pants = rgb(['#2e3440', '#5a4632', '#31435c'][variant]);
-  const skin = rgb(['#d9a066', '#a06844', '#f0c8a0'][variant]);
-  const hair = rgb(['#241a12', '#241a12', '#6b4a2f'][variant]);
+  const skin = rgb(custom ? custom.skin : ['#d9a066', '#a06844', '#f0c8a0'][variant]);
+  const hair = rgb(custom ? custom.hair : ['#241a12', '#241a12', '#6b4a2f'][variant]);
+  const style = custom ? custom.style : variant;
   const shoe = rgb('#191c1f');
   const white = [1, 1, 1];
-  b.box(0, 4.75, -3.4, 5.5, 9.5, 5.2, pants, { part: 1 });
-  b.box(0, 4.75, 3.4, 5.5, 9.5, 5.2, pants, { part: 2 });
-  b.box(0.9, 0.9, -3.4, 7.5, 1.8, 5.2, shoe, { part: 1 });
-  b.box(0.9, 0.9, 3.4, 7.5, 1.8, 5.2, shoe, { part: 2 });
-  b.box(0, 14.5, 0, 7.5, 10, 11.5, white, { kind: 6 });
-  b.box(0, 13.9, -8.6, 4.6, 9, 4.6, white, { kind: 6, part: 3 });
-  b.box(0, 13.9, 8.6, 4.6, 9, 4.6, white, { kind: 6, part: 4 });
-  b.box(0, 22.6, 0, 7.6, 6.8, 7.6, skin);
-  if (variant === 1) {
-    const cap = rgb('#c23b2e'); // a baseball cap instead of hair
-    b.box(-0.2, 26.3, 0, 8.4, 1.9, 8.4, cap);
-    b.box(4.6, 25.8, 0, 4.6, 0.8, 7.4, cap);
-    b.box(-3.9, 24.6, 0, 1.2, 3.4, 7.6, hair);
-  } else if (variant === 2) {
-    b.box(-0.3, 26.4, 0, 8.2, 1.8, 8.2, hair);
-    b.box(-3.8, 22.6, 0, 1.6, 10.5, 7.8, hair); // long hair down the back
+  b.box(0, 5.25, -2.1, 5, 10.5, 3.9, pants, { part: 1 });
+  b.box(0, 5.25, 2.1, 5, 10.5, 3.9, pants, { part: 2 });
+  b.box(0.9, 0.85, -2.1, 6.8, 1.7, 4, shoe, { part: 1 });
+  b.box(0.9, 0.85, 2.1, 6.8, 1.7, 4, shoe, { part: 2 });
+  b.box(0, 15.2, 0, 6.4, 10.5, 8.2, white, { kind: 6 });
+  b.box(0, 15, -6.1, 4, 9.5, 3.6, white, { kind: 6, part: 3 });
+  b.box(0, 15, 6.1, 4, 9.5, 3.6, white, { kind: 6, part: 4 });
+  b.box(0, 23.7, 0, 6.6, 6.6, 6.6, skin);
+  if (style === 1) {
+    b.box(-0.2, 27.5, 0, 7.4, 1.7, 7.4, hair);
+    b.box(4.4, 27.1, 0, 4.4, 0.7, 6.6, hair);
+    b.box(-3.4, 25.9, 0, 1.1, 3.2, 6.6, hair);
+  } else if (style === 2) {
+    b.box(-0.3, 27.6, 0, 7.2, 1.7, 7.2, hair);
+    b.box(-3.3, 23.2, 0, 1.5, 10, 6.8, hair);
   } else {
-    b.box(-0.3, 26.4, 0, 8.2, 1.8, 8.2, hair);
-    b.box(-3.9, 24.2, 0, 1.4, 5.5, 7.6, hair);
+    b.box(-0.3, 27.6, 0, 7.2, 1.7, 7.2, hair);
+    b.box(-3.4, 25.7, 0, 1.3, 5, 6.6, hair);
   }
   return b;
 }
 
-// CONDOR, the police helicopter. The main rotor is a separate mesh so
-// it can spin. Origin at the body centre; skids hang below.
+export function buildTruckMesh() {
+  const b = new Builder();
+  const white = [1, 1, 1];
+  b.box(-9, 14, 0, 34, 18, 21, rgb('#dfe3e6'));
+  b.box(17.5, 9.5, 0, 13, 11, 19, white, { kind: 6 });
+  b.box(22.5, 11.5, 0, 3.5, 6, 16.5, GLASS);
+  b.box(24.5, 4.5, 0, 2.5, 5, 19, TRIM);
+  b.box(-26.5, 5, 0, 2, 6, 19, TRIM);
+  b.box(24.6, 7, -6.5, 1.2, 3, 5, rgb('#fff3c4'), { kind: 3 });
+  b.box(24.6, 7, 6.5, 1.2, 3, 5, rgb('#fff3c4'), { kind: 3 });
+  b.box(-27.4, 7, -6.5, 1.2, 3, 5, rgb('#ff2d20'), { kind: 3 });
+  b.box(-27.4, 7, 6.5, 1.2, 3, 5, rgb('#ff2d20'), { kind: 3 });
+  for (const sx of [16, -18]) {
+    for (const sz of [11, -11]) b.box(sx, 6, sz, 12, 12, 3.6, TYRE);
+  }
+  return b;
+}
+
+export function buildMotoMesh() {
+  const b = new Builder();
+  const white = [1, 1, 1];
+  b.box(11, 4.8, 0, 2.6, 9.6, 9.6, TYRE);
+  b.box(-11, 4.8, 0, 2.6, 9.6, 9.6, TYRE);
+  b.box(1, 7.5, 0, 20, 3.4, 4.6, white, { kind: 6 });
+  b.box(6, 10, 0, 8, 3, 5, white, { kind: 6 });
+  b.box(-5, 10.5, 0, 9, 2.2, 5.4, rgb('#191c1f'));
+  b.box(12.5, 11, 0, 1.6, 4.5, 7, GLASS);
+  const cloth = rgb('#31435c');
+  b.box(-4, 13.5, -3.4, 7, 5, 3.4, cloth);
+  b.box(-4, 13.5, 3.4, 7, 5, 3.4, cloth);
+  b.box(-3, 19.5, 0, 6.4, 8.5, 7.6, white, { kind: 6 });
+  b.box(2.5, 17.5, -5.4, 8.5, 3, 3, white, { kind: 6 });
+  b.box(2.5, 17.5, 5.4, 8.5, 3, 3, white, { kind: 6 });
+  b.box(-3, 26, 0, 6.4, 5.8, 6.4, rgb('#d9a066'));
+  b.box(-3, 29.4, 0, 7, 1.6, 7, rgb('#c23b2e'));
+  return b;
+}
+
 export function buildHeliMesh() {
   const b = new Builder();
   const body = rgb('#22384f');
@@ -127,7 +155,6 @@ export function buildHeliRotor() {
   return b;
 }
 
-// A roadblock barrier: striped board on two feet, spanning local Z.
 export function buildBarrierMesh() {
   const b = new Builder();
   const orange = rgb('#ff7a26');
@@ -142,7 +169,6 @@ export function buildBarrierMesh() {
   return b;
 }
 
-// Floating pickup crates: weapons glow orange, ammunition green.
 export function buildPickupMesh(kind) {
   const b = new Builder();
   const glow = kind === 'weapon' ? rgb('#ff9a2a') : rgb('#51e07a');
@@ -152,14 +178,12 @@ export function buildPickupMesh(kind) {
   return b;
 }
 
-// The race checkpoint ring: a fat emissive torus standing in the YZ plane.
 export function buildRingMesh() {
   const b = new Builder();
   b.torus(0, 26, 0, 25, 2.4, 22, rgb('#ffb020'), { kind: 3 });
   return b;
 }
 
-// The mission marker: a spinning emissive diamond.
 export function buildDiamondMesh() {
   const b = new Builder();
   b.box(0, 0, 0, 10, 15, 10, rgb('#ffd34d'), { kind: 3, ry: Math.PI / 4 });
