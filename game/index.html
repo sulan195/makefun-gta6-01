@@ -52,10 +52,13 @@
             justify-content: center; text-align: center; }
   #title { background: linear-gradient(180deg, rgba(10,8,20,0.25) 0%, rgba(10,8,20,0.05) 40%,
            rgba(20,8,4,0.45) 100%); justify-content: flex-start; padding-top: 64px; }
-  #title h1 { font-size: 92px; margin: 0; letter-spacing: 6px; font-weight: 900;
-              background: linear-gradient(180deg, #fff3c4, #ffb340 55%, #ff7847);
-              -webkit-background-clip: text; background-clip: text; color: transparent;
-              filter: drop-shadow(0 4px 14px rgba(0,0,0,0.65)); }
+  #title .bdg{border:2px solid #e8c97a;outline:1px solid rgba(232,201,122,.55);outline-offset:4px;background:radial-gradient(circle at 50% 38%,rgba(17,80,79,.88),rgba(8,42,43,.94));padding:18px 38px 14px}
+  #title .bn,#title .bs{font-family:Georgia,'Times New Roman',serif}
+  #title .bn{font-size:60px;letter-spacing:13px;color:#f5e7c1;line-height:1.05}
+  #title .br{display:flex;align-items:center;gap:9px;margin:7px 2px;color:#e8c97a;font-size:11px}
+  #title .br span{flex:1;height:1px;background:#e8c97a}
+  #title .bs{font-size:28px;letter-spacing:21px;color:#e8c97a;line-height:1.1}
+  #title .tag{margin-top:15px;font-family:Georgia,serif;font-style:italic;font-size:19px;letter-spacing:2px;color:#f5e7c1;text-shadow:0 2px 8px #000}
   .menu { margin-top: 20px; display: flex; flex-direction: column; gap: 9px; align-items: center; }
   .menu button { min-width: 300px; padding: 10px 18px; font-size: 16.5px; font-weight: 800;
     letter-spacing: 1.2px; color: #ffe9a8; background: rgba(8,12,18,0.72); border: 1px solid rgba(255,210,62,0.45);
@@ -149,7 +152,8 @@
   </div>
 
   <div class="screen" id="title">
-    <h1>SOLMAR HEAT</h1>
+    <div class="bdg"><div class="bn">SOLMAR</div><div class="br"><span></span>◆<span></span></div><div class="bs">HEAT</div></div>
+    <div class="tag">Every fare has a price.</div>
     <div class="menu" id="menu-main">
       <button data-act="new">NEW GAME</button>
       <button data-act="continue">CONTINUE</button>
