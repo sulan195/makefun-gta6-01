@@ -68,8 +68,10 @@ export function buildPersonMesh(variant = 0, custom = null) {
   b.box(0.9, 0.85, -2.1, 6.8, 1.7, 4, shoe, { part: 1 });
   b.box(0.9, 0.85, 2.1, 6.8, 1.7, 4, shoe, { part: 2 });
   b.box(0, 15.2, 0, 6.4, 10.5, 8.2, white, { kind: 6 });
-  b.box(0, 15, -6.1, 4, 9.5, 3.6, white, { kind: 6, part: 3 });
-  b.box(0, 15, 6.1, 4, 9.5, 3.6, white, { kind: 6, part: 4 });
+  b.box(0, 17.3, -6.2, 3.6, 5, 3.2, white, { kind: 6, part: 3 });
+  b.box(0, 12.3, -6.2, 3.2, 5, 2.9, skin, { part: 3 });
+  b.box(0, 17.3, 6.2, 3.6, 5, 3.2, white, { kind: 6, part: 4 });
+  b.box(0, 12.3, 6.2, 3.2, 5, 2.9, skin, { part: 4 });
   b.box(0, 23.7, 0, 6.6, 6.6, 6.6, skin);
   if (style === 1) {
     b.box(-0.2, 27.5, 0, 7.4, 1.7, 7.4, hair);
@@ -115,9 +117,9 @@ export function buildMotoMesh() {
   const cloth = rgb('#31435c');
   b.box(-4, 13.5, -3.4, 7, 5, 3.4, cloth);
   b.box(-4, 13.5, 3.4, 7, 5, 3.4, cloth);
-  b.box(-3, 19.5, 0, 6.4, 8.5, 7.6, white, { kind: 6 });
-  b.box(2.5, 17.5, -5.4, 8.5, 3, 3, white, { kind: 6 });
-  b.box(2.5, 17.5, 5.4, 8.5, 3, 3, white, { kind: 6 });
+  b.box(-3, 19.5, 0, 6.4, 8.5, 6.6, white, { kind: 6 });
+  b.box(2.5, 17.5, -4.9, 8.5, 3, 2.6, white, { kind: 6 });
+  b.box(2.5, 17.5, 4.9, 8.5, 3, 2.6, white, { kind: 6 });
   b.box(-3, 26, 0, 6.4, 5.8, 6.4, rgb('#d9a066'));
   b.box(-3, 29.4, 0, 7, 1.6, 7, rgb('#c23b2e'));
   return b;
@@ -187,5 +189,14 @@ export function buildRingMesh() {
 export function buildDiamondMesh() {
   const b = new Builder();
   b.box(0, 0, 0, 10, 15, 10, rgb('#ffd34d'), { kind: 3, ry: Math.PI / 4 });
+  return b;
+}
+
+export function buildGunMesh() {
+  const b = new Builder();
+  const dark = rgb('#14161a');
+  b.box(1, 0, 0, 11, 2.4, 1.7, dark);
+  b.box(-1.5, -2, 0, 2, 3.2, 1.5, dark);
+  b.box(7.5, 0.5, 0, 4, 1.1, 1.1, dark);
   return b;
 }

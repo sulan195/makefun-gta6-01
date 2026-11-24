@@ -9,7 +9,7 @@ import {
   buildCarMesh, buildPoliceMesh, buildPersonMesh, buildTruckMesh,
   buildMotoMesh, buildHeliMesh,
   buildHeliRotor, buildBarrierMesh, buildPickupMesh, buildRingMesh,
-  buildDiamondMesh,
+  buildDiamondMesh, buildGunMesh,
 } from './models.js';
 import { missionTargetPos } from './missions.js';
 import { raceTarget, RACE_POINTS, RACE_START } from './races.js';
@@ -112,6 +112,7 @@ export function createRenderer(canvas, world) {
     pickupAmmo: new Mesh(gl, buildPickupMesh('ammo')),
     ring: new Mesh(gl, buildRingMesh()),
     diamond: new Mesh(gl, buildDiamondMesh()),
+    gun: new Mesh(gl, buildGunMesh()),
     cone: new MeshA(gl, coneBuilder),
     disc: new MeshA(gl, discBuilder),
     dyn: new MeshA(gl, null, true),
@@ -145,6 +146,13 @@ function drawPerson(R, x, y, angle, tint, walkPhase, walkAmp, down,
 
 export function rebuildPlayer(R, custom) {
   R.player = new Mesh(R.gl, buildPersonMesh(0, custom));
+}
+
+function drawGun(R, e, s) {
+  const c = Math.cos(e.angle), n = Math.sin(e.angle);
+  setLit(R, m4compose(e.x + (5.5 * c - 6.2 * n) * s, 11.8 * s,
+    e.y + (5.5 * n + 6.2 * c) * s, -e.angle, s), [1, 1, 1], 0, 0, 0);
+  R.gun.draw(R.gl);
 }
 
 function drawCar(R, car) {
@@ -254,10 +262,12 @@ export function drawScene(R, state) {
     if (!e.alive) continue;
     drawPerson(R, e.x, e.y, e.angle, ENEMY_TINT, e.walkPhase || 0, 0.9, false,
       1, 0.74);
+    drawGun(R, e, 0.74);
   }
   if (p.onFoot) {
     drawPerson(R, p.x, p.y, p.angle, MARA_TINT,
       p.walkPhase, p.moving ? 1 : 0, false, 0, 0.7, R.player);
+    if (state.weapons.current !== 'fist') drawGun(R, p, 0.7);
   }
   if (state.heli) {
     const h = state.heli;
